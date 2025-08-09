@@ -1,0 +1,35 @@
+/* Dynamic Theme Tokens */
+.root-dark { --bg:#1e1e1f; --bg-alt:#242425; --border:#3a3a3c; --text:#ececec; --text-dim:rgba(236,236,236,0.55); --accent:#588bff; --accent-alt:#6fa0ff; --success:#2ec27e; --warn:#f5c211; --error:#e01b24; }
+.root-light { --bg:#f6f7f9; --bg-alt:#ffffff; --border:#d0d4d9; --text:#202326; --text-dim:rgba(32,35,38,0.55); --accent:#1c71d8; --accent-alt:#3584e4; --success:#2ec27e; --warn:#b46900; --error:#c01c28; }
+
+window { background: var(--bg); color: var(--text); transition: background .25s ease, color .25s ease; }
+headerbar { background: var(--bg-alt); border-bottom:1px solid var(--border); }
+headerbar button.flat:hover { background: rgba(88,139,255,0.12); }
+.boxed-list { border:1px solid var(--border); border-radius:12px; background: var(--bg-alt); }
+.boxed-list > row { border-bottom:1px solid rgba(0,0,0,0.12); padding:10px 14px; }
+.root-light .boxed-list > row { border-bottom:1px solid rgba(0,0,0,0.06); }
+.boxed-list > row:last-child { border-bottom:none; }
+.boxed-list > row:hover { background: rgba(88,139,255,0.10); }
+.wifi-strong { color: var(--success); }
+.wifi-medium { color: var(--warn); }
+.wifi-weak { color: var(--error); }
+.band-separator { font-size:11px; letter-spacing:.8px; font-weight:600; text-transform:uppercase; padding:4px 10px; background: var(--bg-alt); color: var(--text-dim); }
+.pill { background: rgba(255,255,255,0.08); color: var(--text); border-radius:999px; padding:2px 8px; font-size:11px; font-weight:500; }
+.root-light .pill { background: rgba(0,0,0,0.06); }
+.pill.secure { background: rgba(46,194,126,0.20); color: var(--success); }
+.pill.open { background: rgba(245,194,17,0.25); color: var(--warn); }
+.pill.channel { background: rgba(88,139,255,0.25); color: var(--accent); }
+.signal-level { background: rgba(255,255,255,0.08); border-radius:6px; padding:2px 4px; }
+.root-light .signal-level { background: rgba(0,0,0,0.06); }
+.signal-level progressbar, .signal-level progressbar trough { min-height:6px; border-radius:4px; }
+.signal-level progressbar progress { background: linear-gradient(to right,var(--accent),var(--accent-alt)); border-radius:4px; }
+.signal-label { font-size:11px; font-weight:600; margin-left:6px; }
+statuspage { background: transparent; }
+toast { background: var(--bg-alt); border:1px solid var(--border); border-radius:12px; padding:12px 16px; }
+scrollbar slider { background: rgba(255,255,255,0.25); border-radius:8px; }
+.root-light scrollbar slider { background: rgba(0,0,0,0.25); }
+scrollbar slider:hover { background: rgba(255,255,255,0.35); }
+.root-light scrollbar slider:hover { background: rgba(0,0,0,0.35); }
+scrollbar slider:active { background: var(--accent); }
+
+/* End of file */

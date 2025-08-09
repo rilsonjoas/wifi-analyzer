@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist gettext-domain="wifi-analyzer">
+  <schema id="com.example.WifiAnalyzer" path="/com/example/WifiAnalyzer/">
+    <key name="window-width" type="i">
+      <default>900</default>
+      <summary>Default window width</summary>
+      <description>Default window width</description>
+    </key>
+    <key name="window-height" type="i">
+      <default>700</default>
+      <summary>Default window height</summary>
+      <description>Default window height</description>
+    </key>
+    <key name="window-maximized" type="b">
+      <default>false</default>
+      <summary>Default window maximized state</summary>
+      <description>Default window maximized state</description>
+    </key>
+    <key name="refresh-interval" type="i">
+      <default>5</default>
+      <summary>Network refresh interval in seconds</summary>
+      <description>How often to refresh the network list in seconds</description>
+    </key>
+    <key name="enable-notifications" type="b">
+      <default>true</default>
+      <summary>Enable network change notifications</summary>
+      <description>Show desktop notifications when networks appear/disappear or signal drops.</description>
+    </key>
+    <!-- Novas preferências de aparência -->
+    <key name="color-scheme" type="s">
+      <default>'system'</default>
+      <summary>Color scheme preference</summary>
+      <description>One of: system, light, dark.</description>
+    </key>
+    <key name="icon-variant" type="s">
+      <default>'default'</default>
+      <summary>Icon variant</summary>
+      <description>One of: default, alt1, alt2.</description>
+    </key>
+    <!-- Opções de desenvolvimento / debug -->
+    <key name="enable-dev-mode" type="b">
+      <default>false</default>
+      <summary>Enable development (mock) mode</summary>
+      <description>Force app to use mock Wi-Fi data instead of real system scans.</description>
+    </key>
+    <key name="enable-debug-logging" type="b">
+      <default>false</default>
+      <summary>Enable verbose debug logging</summary>
+      <description>Print detailed debug logs to console.</description>
+    </key>
+  </schema>
+</schemalist>

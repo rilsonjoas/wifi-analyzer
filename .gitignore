@@ -1,0 +1,10 @@
+build/
+build-dir/
+meson-private/
+*.log
+*.cache
+*.swp
+.flatpak-builder/
+*.flatpak
+*.tar.gz
+compile_commands.json

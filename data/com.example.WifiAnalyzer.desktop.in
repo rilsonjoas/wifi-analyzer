@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=WiFi Analyzer
+Comment=Analyze and monitor wireless networks
+Exec=wifi-analyzer
+Icon=com.example.WifiAnalyzer
+Terminal=false
+Type=Application
+Categories=Network;System;
+StartupNotify=true
+Keywords=wifi;network;wireless;analyzer;

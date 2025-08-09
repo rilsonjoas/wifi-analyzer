@@ -1,0 +1,161 @@
+/* Advanced Channel Analysis Styles */
+
+.channel-overlap-widget {
+  background: linear-gradient(135deg, #2d3748 0%, #1a202c 100%);
+  border-radius: 8px;
+  padding: 16px;
+  margin: 8px;
+}
+
+.interference-item {
+  border-left: 4px solid;
+  padding: 12px;
+  margin: 4px 0;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.interference-item.high {
+  border-left-color: #e53e3e;
+  background: rgba(229, 62, 62, 0.1);
+}
+
+.interference-item.medium {
+  border-left-color: #d69e2e;
+  background: rgba(214, 158, 46, 0.1);
+}
+
+.interference-item.low {
+  border-left-color: #38a169;
+  background: rgba(56, 161, 105, 0.1);
+}
+
+.recommendation-box {
+  background: rgba(66, 153, 225, 0.1);
+  border: 1px solid rgba(66, 153, 225, 0.3);
+  border-radius: 6px;
+  padding: 12px;
+  margin: 8px 0;
+}
+
+.channel-grid {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
+.signal-bar {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+  margin: 1px;
+}
+
+.signal-bar.active {
+  background: linear-gradient(to top, #48bb78, #38a169);
+}
+
+.signal-bar.weak {
+  background: linear-gradient(to top, #e53e3e, #c53030);
+}
+
+.signal-bar.medium {
+  background: linear-gradient(to top, #d69e2e, #b7791f);
+}
+
+.overlap-zone {
+  background: rgba(229, 62, 62, 0.2);
+  border: 2px dashed rgba(229, 62, 62, 0.5);
+  border-radius: 4px;
+}
+
+.analysis-header {
+  background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%);
+  color: white;
+  padding: 16px;
+  border-radius: 8px 8px 0 0;
+  margin-bottom: 0;
+}
+
+.analysis-content {
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 0 0 8px 8px;
+  padding: 16px;
+}
+
+.severity-indicator {
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: bold;
+}
+
+.severity-high {
+  background: rgba(229, 62, 62, 0.2);
+  color: #fc8181;
+}
+
+.severity-medium {
+  background: rgba(214, 158, 46, 0.2);
+  color: #f6e05e;
+}
+
+.severity-low {
+  background: rgba(56, 161, 105, 0.2);
+  color: #68d391;
+}
+
+.channel-number {
+  font-weight: bold;
+  color: #a0aec0;
+  text-align: center;
+  padding: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+  margin: 2px;
+}
+
+.network-label {
+  font-size: 10px;
+  color: white;
+  text-align: center;
+  background: rgba(0, 0, 0, 0.7);
+  padding: 2px 4px;
+  border-radius: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 60px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  margin: 4px 0;
+  font-size: 12px;
+  color: #a0aec0;
+}
+
+.legend-color {
+  width: 16px;
+  height: 16px;
+  border-radius: 2px;
+  margin-right: 8px;
+}
+
+.legend-green {
+  background: linear-gradient(to right, #48bb78, #38a169);
+}
+
+.legend-yellow {
+  background: linear-gradient(to right, #d69e2e, #b7791f);
+}
+
+.legend-red {
+  background: linear-gradient(to right, #e53e3e, #c53030);
+}
+
+.legend-overlap {
+  background: rgba(229, 62, 62, 0.3);
+  border: 1px dashed rgba(229, 62, 62, 0.7);
+}

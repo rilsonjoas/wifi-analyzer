@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>com.example.WifiAnalyzer</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+  <name>WiFi Analyzer</name>
+  <summary>Analyze and monitor wireless networks</summary>
+  <description>
+    <p>
+      WiFi Analyzer is a modern application for analyzing wireless networks.
+      It provides detailed information about WiFi networks in your area,
+      including signal strength, security protocols, and channel usage.
+    </p>
+    <p>Features:</p>
+    <ul>
+      <li>Real-time network scanning</li>
+      <li>Detailed network information</li>
+      <li>Modern GNOME interface</li>
+      <li>Signal strength monitoring</li>
+    </ul>
+  </description>
+  <screenshots>
+    <screenshot type="default">
+      <caption>Main window showing network list</caption>
+    </screenshot>
+  </screenshots>
+  <url type="homepage">https://github.com/seu-usuario/wifi-analyzer</url>
+  <url type="bugtracker">https://github.com/seu-usuario/wifi-analyzer/issues</url>
+  <developer_name>Seu Nome</developer_name>
+  <launchable type="desktop-id">com.example.WifiAnalyzer.desktop</launchable>
+  <provides>
+    <binary>wifi-analyzer</binary>
+  </provides>
+  <releases>
+    <release version="1.0.0" date="2025-08-07">
+      <description>
+        <p>Initial release</p>
+      </description>
+    </release>
+  </releases>
+  <content_rating type="oars-1.1"/>
+</component>

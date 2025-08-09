@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="128" height="128" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+ <defs>
+  <linearGradient id="gradDark" x1="0" y1="0" x2="0" y2="1">
+   <stop offset="0" stop-color="#0d1117"/>
+   <stop offset="1" stop-color="#1f252b"/>
+  </linearGradient>
+  <linearGradient id="sig" x1="0" y1="0" x2="1" y2="0">
+   <stop offset="0" stop-color="#2ec27e"/>
+   <stop offset="1" stop-color="#57e389"/>
+  </linearGradient>
+  <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+    <feGaussianBlur stdDeviation="4" result="b"/>
+    <feColorMatrix in="b" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.4 0"/>
+    <feBlend in="SourceGraphic" mode="screen"/>
+  </filter>
+ </defs>
+ <rect x="10" y="10" width="108" height="108" rx="22" fill="url(#gradDark)" stroke="#30363d" stroke-width="2"/>
+ <g fill="none" stroke="url(#sig)" stroke-width="8" stroke-linecap="round" filter="url(#glow)">
+  <path d="M28 68a36 36 0 0172 0"/>
+  <path d="M44 78a20 20 0 0140 0"/>
+  <circle cx="64" cy="90" r="8" fill="#57e389" stroke="none"/>
+ </g>
+</svg>
