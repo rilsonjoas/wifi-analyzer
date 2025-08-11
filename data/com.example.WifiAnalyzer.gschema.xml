@@ -22,7 +22,7 @@
       <description>How often to refresh the network list in seconds</description>
     </key>
     <key name="enable-notifications" type="b">
-      <default>true</default>
+      <default>false</default>
       <summary>Enable network change notifications</summary>
       <description>Show desktop notifications when networks appear/disappear or signal drops.</description>
     </key>

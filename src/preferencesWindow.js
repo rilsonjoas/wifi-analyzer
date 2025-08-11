@@ -83,18 +83,27 @@ var PreferencesWindow = GObject.registerClass(
     }
 
     _createAppearancePage() {
-      const page = new Adw.PreferencesPage({ title: "Aparência", icon_name: "display-settings-symbolic" });
-      const appearanceGroup = new Adw.PreferencesGroup({ title: "Tema do Aplicativo" });
+      const page = new Adw.PreferencesPage({ 
+        title: "Aparência", 
+        icon_name: "preferences-desktop-theme-symbolic" 
+      });
+      
+      const appearanceGroup = new Adw.PreferencesGroup({ 
+        title: "Tema do Aplicativo",
+        description: "Personalize a aparência do WiFi Analyzer"
+      });
       page.add(appearanceGroup);
 
       const themeRow = new Adw.ComboRow({
         title: "Esquema de Cores",
+        subtitle: "Escolha entre claro, escuro ou seguir o sistema",
         model: new Gtk.StringList({ strings: ["Padrão do Sistema", "Claro", "Escuro"] }),
       });
       appearanceGroup.add(themeRow);
 
       const iconRow = new Adw.ComboRow({
         title: "Variante de Ícone",
+        subtitle: "Selecione o estilo do ícone do aplicativo",
         model: new Gtk.StringList({ strings: ["Padrão", "Gradiente Azul", "Verde Luminoso"] }),
       });
       appearanceGroup.add(iconRow);
@@ -153,8 +162,27 @@ var PreferencesWindow = GObject.registerClass(
 
     _applyIconVariant(variant) {
       let icon = "com.example.WifiAnalyzer";
-      if (variant === "alt1") icon = "com.example.WifiAnalyzer-alt1"; else if (variant === "alt2") icon = "com.example.WifiAnalyzer-alt2";
-      const win = this.get_transient_for(); if (win) win.set_icon_name(icon);
+      if (variant === "alt1") icon = "com.example.WifiAnalyzer-alt1"; 
+      else if (variant === "alt2") icon = "com.example.WifiAnalyzer-alt2";
+      
+      // Atualizar ícone da janela principal
+      const win = this.get_transient_for(); 
+      if (win) {
+        win.set_icon_name(icon);
+        
+        // Forçar atualização do ícone na headerbar também
+        const app = win.get_application();
+        if (app) {
+          // Aplicar a todas as janelas da aplicação
+          const windows = app.get_windows();
+          for (const w of windows) {
+            w.set_icon_name(icon);
+          }
+        }
+      }
+      
+      // Log para debug
+      print(`Ícone alterado para: ${icon}`);
     }
   }
 );

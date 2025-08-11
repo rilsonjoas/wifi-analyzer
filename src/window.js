@@ -11,6 +11,7 @@ var WifiAnalyzerWindow = GObject.registerClass(
   },
   class WifiAnalyzerWindow extends Adw.ApplicationWindow {
     _init(application) {
+      print("DEBUG: Iniciando WifiAnalyzerWindow");
       super._init({
         application,
         title: "WiFi Analyzer",
@@ -19,14 +20,37 @@ var WifiAnalyzerWindow = GObject.registerClass(
         content: null,
       });
 
+      print("DEBUG: Criando NetworkManager");
       // Initialize network manager
-      this.networkManager = new NetworkManager({ application: application });
+      try {
+        this.networkManager = new NetworkManager({ application: application });
+        print("DEBUG: NetworkManager criado com sucesso");
+      } catch (e) {
+        print("ERRO: Falha ao criar NetworkManager:", e.message);
+        this.networkManager = null;
+      }
 
+      print("DEBUG: Construindo UI");
       this._buildUI();
+      print("DEBUG: Carregando CSS");
+      this._loadCss();
+      print("DEBUG: Configurando sinais");
       this._setupSignals();
-      this.networkManager.startRealTimeMonitoring();
+      
+      print("DEBUG: Iniciando monitoramento");
+      if (this.networkManager) {
+        try {
+          this.networkManager.startRealTimeMonitoring();
+          print("DEBUG: Monitoramento iniciado");
+        } catch (e) {
+          print("ERRO: Falha ao iniciar monitoramento:", e.message);
+        }
+      }
 
-      this.connect("destroy", () => { if (this.networkManager) this.networkManager.destroy(); });
+      this.connect("destroy", () => { 
+        print("DEBUG: Destruindo janela");
+        if (this.networkManager) this.networkManager.destroy(); 
+      });
       this._lastToastTime = 0;
       this._lastCountShown = -1;
 
@@ -98,6 +122,39 @@ var WifiAnalyzerWindow = GObject.registerClass(
 
       this._toastOverlay.set_child(this.toolbarView);
       this.set_content(this._toastOverlay);
+    }
+
+    _loadCss() {
+        const provider = new Gtk.CssProvider();
+        const display = Gdk.Display.get_default();
+
+        // Carregar múltiplos arquivos CSS
+        const cssFiles = ["modern.css", "charts.css"];
+        const cssPaths = cssFiles.map(file => {
+            // Tentar caminhos diferentes (desenvolvimento vs. instalação)
+            const devPath = GLib.build_filenamev([GLib.get_current_dir(), "src", file]);
+            const installPath = GLib.build_filenamev([GLib.get_user_data_dir(), "com.example.WifiAnalyzer", file]);
+            
+            if (GLib.file_test(devPath, GLib.FileTest.EXISTS)) {
+                return devPath;
+            } else if (GLib.file_test(installPath, GLib.FileTest.EXISTS)) {
+                return installPath;
+            } else {
+                print(`AVISO: Não foi possível encontrar ${file} em nenhum dos caminhos esperados.`);
+                return null;
+            }
+        }).filter(path => path !== null);
+
+        cssPaths.forEach(path => {
+            try {
+                provider.load_from_path(path);
+            }
+            catch (e) {
+                print(`Falha ao carregar CSS de ${path}: ${e.message}`);
+            }
+        });
+
+        Gtk.StyleContext.add_provider_for_display(display, provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION);
     }
 
     _addNetworksPage() {
@@ -199,41 +256,97 @@ var WifiAnalyzerWindow = GObject.registerClass(
     }
 
     _createNetworkRow(network) {
-      const row = new Adw.ActionRow({ title: network.ssid || "(Rede Oculta)", subtitle: `${network._band || ''} • BSSID ${network.bssid}` });
+      // Construir subtitle com informações técnicas organizadas
+      const freq = network.frequency ? `${network.frequency} MHz` : '';
+      const bssid = network.bssid ? network.bssid.substring(0, 17) : ''; // limitar BSSID
+      const subtitleParts = [freq, bssid].filter(Boolean);
+      const subtitle = subtitleParts.join(' • ');
+      
+      const row = new Adw.ActionRow({ 
+        title: network.ssid || "(Rede Oculta)", 
+        subtitle: subtitle
+      });
       row.add_css_class('network-row');
       row.network = network;
-      // Prefix: ícone de sinal
+      
+      // Prefix: ícone de sinal com container para alinhamento
       const signalIcon = this._getSignalIcon(network.signal);
-      const strengthClass = network.signal >= 75 ? 'wifi-strong' : network.signal >=50 ? 'wifi-medium' : 'wifi-weak';
-      const iconImg = new Gtk.Image({ icon_name: signalIcon, css_classes: [strengthClass] });
+      const strengthClass = network.signal >= 75 ? 'wifi-strong' : network.signal >= 50 ? 'wifi-medium' : 'wifi-weak';
+      const iconImg = new Gtk.Image({ 
+        icon_name: signalIcon, 
+        css_classes: [strengthClass, 'network-signal-icon'],
+        valign: Gtk.Align.CENTER 
+      });
       row.add_prefix(iconImg);
-      // Sufixos: pills + barra sinal
-      const suffixBox = new Gtk.Box({ orientation: Gtk.Orientation.HORIZONTAL, spacing: 6, halign: Gtk.Align.END });
-      const pill = (text, extra=[]) => { const l = new Gtk.Label({ label: text, css_classes: ['pill', ...extra] }); return l; };
+      
+      // Sufixos reorganizados com melhor espaçamento
+      const suffixBox = new Gtk.Box({ 
+        orientation: Gtk.Orientation.HORIZONTAL, 
+        spacing: 8, 
+        halign: Gtk.Align.END,
+        valign: Gtk.Align.CENTER
+      });
+      
+      // Pills com melhor tipografia
+      const pill = (text, extra=[]) => { 
+        const l = new Gtk.Label({ 
+          label: text, 
+          css_classes: ['pill', 'caption', ...extra],
+          valign: Gtk.Align.CENTER
+        }); 
+        return l; 
+      };
+      
       // Segurança
-      if (network.security && network.security !== 'Open') suffixBox.append(pill(network.security, ['secure'])); else suffixBox.append(pill('Open', ['open']));
-      // Canal
-      suffixBox.append(pill(`Ch ${network.channel||'?'} `, ['channel']));
-      // Banda
-      if (network._band) suffixBox.append(pill(network._band, []));
-      // Barra de nível
-      const levelBox = new Gtk.Box({ orientation: Gtk.Orientation.HORIZONTAL, spacing: 4, css_classes: ['signal-level'], valign: Gtk.Align.CENTER });
-      const pbar = new Gtk.ProgressBar({ fraction: Math.min(1, Math.max(0, network.signal/100)), valign: Gtk.Align.CENTER });
-      pbar.set_text(''); pbar.set_show_text(false);
-      pbar.set_hexpand(true);
-      levelBox.append(pbar);
-      levelBox.append(new Gtk.Label({ label: `${network.signal}%`, css_classes: ['signal-label'] }));
-      suffixBox.append(levelBox);
+      if (network.security && network.security !== 'Open') {
+        suffixBox.append(pill(network.security, ['secure']));
+      } else {
+        suffixBox.append(pill('Aberta', ['open']));
+      }
+      
+      // Canal com formatação melhorada
+      const channelText = network.channel ? `Canal ${network.channel}` : 'Canal ?';
+      suffixBox.append(pill(channelText, ['channel']));
+      
+      // Sinal como texto simples em vez de barra de progresso
+      const signalLabel = new Gtk.Label({
+        label: `${network.signal}%`,
+        css_classes: ['signal-percentage', strengthClass],
+        valign: Gtk.Align.CENTER
+      });
+      suffixBox.append(signalLabel);
+      
       row.add_suffix(suffixBox);
       return row;
     }
 
     _createBandSeparatorRow(band) {
-      const lb = new Gtk.ListBoxRow({ selectable: false, activatable: false, focusable: false });
-      const box = new Gtk.Box({ orientation: Gtk.Orientation.HORIZONTAL, halign: Gtk.Align.FILL });
-      const label = new Gtk.Label({ label: band, xalign: 0, css_classes: ['band-separator'] });
-      label.set_halign(Gtk.Align.FILL); label.set_hexpand(true);
-      box.append(label); lb.set_child(box); return lb;
+      const lb = new Gtk.ListBoxRow({ 
+        selectable: false, 
+        activatable: false, 
+        focusable: false,
+        css_classes: ['band-separator-row']
+      });
+      
+      const box = new Gtk.Box({ 
+        orientation: Gtk.Orientation.HORIZONTAL, 
+        halign: Gtk.Align.FILL,
+        margin_top: 12,
+        margin_bottom: 6,
+        margin_start: 12,
+        margin_end: 12
+      });
+      
+      const label = new Gtk.Label({ 
+        label: band, 
+        xalign: 0, 
+        css_classes: ['band-separator', 'heading', 'dim-label'],
+        halign: Gtk.Align.START
+      });
+      
+      box.append(label); 
+      lb.set_child(box); 
+      return lb;
     }
 
     _getSignalIcon(signal) { if (signal >= 75) return "network-wireless-signal-excellent-symbolic"; if (signal >= 50) return "network-wireless-signal-good-symbolic"; if (signal >= 25) return "network-wireless-signal-ok-symbolic"; return "network-wireless-signal-weak-symbolic"; }
@@ -257,7 +370,13 @@ var WifiAnalyzerWindow = GObject.registerClass(
       dialog.present();
     }
 
-    _showToast(message) { const toast = new Adw.Toast({ title: message, timeout: 3, priority: Adw.ToastPriority.LOW }); this._toastOverlay.add_toast(toast); }
+    _showToast(message) { 
+        const toast = new Adw.Toast({ 
+            title: message, 
+            timeout: 3
+        }); 
+        this._toastOverlay.add_toast(toast); 
+    }
     _showPreferences() { const prefsDialog = new PreferencesWindow(this); prefsDialog.present(); }
   }
 );

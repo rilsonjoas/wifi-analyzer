@@ -5,25 +5,139 @@
 window { background: var(--bg); color: var(--text); transition: background .25s ease, color .25s ease; }
 headerbar { background: var(--bg-alt); border-bottom:1px solid var(--border); }
 headerbar button.flat:hover { background: rgba(88,139,255,0.12); }
+
+/* Lista de redes com visual inspirado no GNOME Settings/Control Center */
 .boxed-list { border:1px solid var(--border); border-radius:12px; background: var(--bg-alt); }
-.boxed-list > row { border-bottom:1px solid rgba(0,0,0,0.12); padding:10px 14px; }
-.root-light .boxed-list > row { border-bottom:1px solid rgba(0,0,0,0.06); }
+.boxed-list > row { 
+  border-bottom:1px solid rgba(0,0,0,0.08); 
+  padding:16px 18px; 
+  min-height:64px;
+  transition: background 150ms ease;
+}
+.root-light .boxed-list > row { border-bottom:1px solid rgba(0,0,0,0.04); }
 .boxed-list > row:last-child { border-bottom:none; }
-.boxed-list > row:hover { background: rgba(88,139,255,0.10); }
+.boxed-list > row:hover { background: rgba(88,139,255,0.06); }
+.boxed-list > row:active { background: rgba(88,139,255,0.12); }
+
+/* Separadores de banda com estilo GNOME */
+.band-separator-row { 
+  background: transparent;
+  border-bottom: none;
+  padding: 0;
+}
+.band-separator { 
+  font-size:12px; 
+  letter-spacing:0.5px; 
+  font-weight:700; 
+  text-transform:uppercase; 
+  color: var(--accent);
+}
+
+/* Ícones de sinal */
+.network-signal-icon {
+  margin-right: 4px;
+}
 .wifi-strong { color: var(--success); }
 .wifi-medium { color: var(--warn); }
 .wifi-weak { color: var(--error); }
-.band-separator { font-size:11px; letter-spacing:.8px; font-weight:600; text-transform:uppercase; padding:4px 10px; background: var(--bg-alt); color: var(--text-dim); }
-.pill { background: rgba(255,255,255,0.08); color: var(--text); border-radius:999px; padding:2px 8px; font-size:11px; font-weight:500; }
-.root-light .pill { background: rgba(0,0,0,0.06); }
-.pill.secure { background: rgba(46,194,126,0.20); color: var(--success); }
-.pill.open { background: rgba(245,194,17,0.25); color: var(--warn); }
-.pill.channel { background: rgba(88,139,255,0.25); color: var(--accent); }
-.signal-level { background: rgba(255,255,255,0.08); border-radius:6px; padding:2px 4px; }
-.root-light .signal-level { background: rgba(0,0,0,0.06); }
-.signal-level progressbar, .signal-level progressbar trough { min-height:6px; border-radius:4px; }
-.signal-level progressbar progress { background: linear-gradient(to right,var(--accent),var(--accent-alt)); border-radius:4px; }
-.signal-label { font-size:11px; font-weight:600; margin-left:6px; }
+
+/* Pills redesenhadas no estilo GNOME Settings */
+.pill { 
+  background: var(--accent); 
+  color: white; 
+  border-radius:16px; 
+  padding:4px 10px; 
+  font-size:11px; 
+  font-weight:600;
+  min-height: 24px;
+}
+.pill.secure { background: var(--success); }
+.pill.open { background: var(--warn); }
+.pill.channel { background: rgba(88,139,255,0.15); color: var(--accent); border: 1px solid rgba(88,139,255,0.3); }
+.root-light .pill.channel { background: rgba(28,113,216,0.1); color: var(--accent); border: 1px solid rgba(28,113,216,0.2); }
+
+/* Percentual de sinal */
+.signal-percentage {
+  font-size: 13px;
+  font-weight: 600;
+  min-width: 40px;
+  text-align: center;
+}
+
+/* Layout dos gráficos - inspirado no Mission Center */
+.charts-panel {
+  background: var(--bg);
+  border-left: 1px solid var(--border);
+}
+
+.charts-controls {
+  background: var(--bg-alt);
+  border-bottom: 1px solid var(--border);
+  padding: 8px 12px;
+}
+
+/* Chart Widget - design moderno como Mission Center */
+.chart-widget {
+  background: linear-gradient(135deg, #171719 0%, #1a1a1c 100%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  margin: 6px;
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+.chart-area {
+  background: transparent;
+  min-height: 320px;
+}
+
+/* Responsividade para gráficos */
+@media (max-width: 1200px) {
+  .charts-main-box {
+    orientation: vertical;
+  }
+  
+  .chart-widget {
+    min-height: 280px;
+  }
+}
+
+@media (max-width: 768px) {
+  .chart-widget {
+    min-height: 240px;
+    margin: 4px;
+  }
+  
+  .charts-panel {
+    border-left: none;
+    border-top: 1px solid var(--border);
+  }
+}
+
+/* ViewSwitcher moderno */
+viewswitcher {
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 8px;
+  padding: 2px;
+}
+
+viewswitcher button {
+  border-radius: 6px;
+  transition: all 150ms ease;
+}
+
+viewswitcher button:checked {
+  background: var(--accent);
+  color: white;
+  box-shadow: 0 2px 8px rgba(88, 139, 255, 0.3);
+}
+
+/* Evitar sobreposição de HeaderBars */
+window > * > headerbar + headerbar {
+  display: none;
+}
+
+/* Outros elementos */
 statuspage { background: transparent; }
 toast { background: var(--bg-alt); border:1px solid var(--border); border-radius:12px; padding:12px 16px; }
 scrollbar slider { background: rgba(255,255,255,0.25); border-radius:8px; }
@@ -31,5 +145,10 @@ scrollbar slider { background: rgba(255,255,255,0.25); border-radius:8px; }
 scrollbar slider:hover { background: rgba(255,255,255,0.35); }
 .root-light scrollbar slider:hover { background: rgba(0,0,0,0.35); }
 scrollbar slider:active { background: var(--accent); }
+
+/* Animações e transições suaves */
+.chart-widget, .boxed-list, viewswitcher, .pill {
+  transition: all 200ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
 
 /* End of file */

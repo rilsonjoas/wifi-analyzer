@@ -19,75 +19,186 @@ var RealtimeCharts = GObject.registerClass(
     }
 
     _buildUI() {
-      // ToolbarView provê topo padrão GNOME
-      const toolbarView = new Adw.ToolbarView();
-      this.set_child(toolbarView);
-
-      // Header bar secundária para controles locais da página
-      const headerBar = new Adw.HeaderBar();
-      headerBar.set_title_widget(new Adw.WindowTitle({ title: "Gráficos" }));
-
-      this._pauseButton = new Gtk.ToggleButton({ icon_name: "media-playback-pause-symbolic", tooltip_text: "Pausar/Retomar", css_classes: ["flat", "accent"] });
-      this._pauseButton.connect("toggled", () => {
-        if (this._pauseButton.get_active()) { this._stopUpdates(); this._pauseButton.set_icon_name("media-playback-start-symbolic"); }
-        else { this._startRealTimeUpdates(); this._pauseButton.set_icon_name("media-playback-pause-symbolic"); }
+      // Container principal adaptativo
+      this._mainBox = new Gtk.Box({ 
+        orientation: Gtk.Orientation.HORIZONTAL, 
+        spacing: 0, 
+        hexpand: true, 
+        vexpand: true,
+        css_classes: ["charts-main-box"]
       });
+      this.set_child(this._mainBox);
 
-      this._clearButton = new Gtk.Button({ icon_name: "edit-clear-symbolic", tooltip_text: "Limpar Dados", css_classes: ["flat"] });
-      this._clearButton.connect("clicked", () => this._clearAllData());
+      // Painel esquerdo com controles e lista
+      this._leftPanel = this._createNetworkSelectionPanel();
+      // Painel direito apenas com gráficos
+      this._rightPanel = this._createChartsPanel();
+      
+      this._mainBox.append(this._leftPanel);
+      this._separator = new Gtk.Separator({ orientation: Gtk.Orientation.VERTICAL });
+      this._mainBox.append(this._separator);
+      this._mainBox.append(this._rightPanel);
+      
+      // Configurar responsividade usando o box principal
+      this._setupResponsiveness();
+    }
 
-      const selectAllBtn = new Gtk.Button({ icon_name: "object-select-symbolic", tooltip_text: "Selecionar/Deselecionar Todas", css_classes: ["flat"] });
+    _setupResponsiveness() {
+      // Usar uma abordagem mais robusta para responsividade
+      try {
+        this._mainBox.connect('size-allocate', (widget, allocation) => {
+          // Obter dimensões de forma compatível
+          const width = allocation.width || allocation.get_width?.() || 800;
+          const height = allocation.height || allocation.get_height?.() || 600;
+          this._handleResize(width, height);
+        });
+      } catch (e) {
+        print('Aviso: responsividade não disponível:', e.message);
+        // Fallback: definir layout padrão
+        this._handleResize(1200, 800);
+      }
+    }
+
+    _handleResize(width, height) {
+      const isNarrow = width < 768;
+      const isMedium = width < 1200 && width >= 768;
+      
+      if (isNarrow && this._mainBox.get_orientation() === Gtk.Orientation.HORIZONTAL) {
+        // Layout vertical para telas pequenas
+        this._mainBox.set_orientation(Gtk.Orientation.VERTICAL);
+        this._separator.set_orientation(Gtk.Orientation.HORIZONTAL);
+        this._leftPanel.set_width_request(-1);
+        this._leftPanel.set_height_request(200);
+      } else if (!isNarrow && this._mainBox.get_orientation() === Gtk.Orientation.VERTICAL) {
+        // Layout horizontal para telas maiores
+        this._mainBox.set_orientation(Gtk.Orientation.HORIZONTAL);
+        this._separator.set_orientation(Gtk.Orientation.VERTICAL);
+        this._leftPanel.set_width_request(300);
+        this._leftPanel.set_height_request(-1);
+      }
+    }
+
+    _createNetworkSelectionPanel() {
+      const panel = new Gtk.Box({ 
+        orientation: Gtk.Orientation.VERTICAL, 
+        spacing: 12, 
+        width_request: 300,
+        css_classes: ["network-selection-panel"]
+      });
+      panel.set_margin_start(12);
+      panel.set_margin_end(12);
+      panel.set_margin_top(12);
+      panel.set_margin_bottom(12);
+
+      // Título e instruções
+      const headerBox = new Gtk.Box({ orientation: Gtk.Orientation.VERTICAL, spacing: 6 });
+      const title = new Gtk.Label({ 
+        label: "Redes Wi-Fi", 
+        css_classes: ["title-4"], 
+        xalign: 0 
+      });
+      const instruction = new Gtk.Label({ 
+        label: "Selecione redes para exibir nos gráficos", 
+        css_classes: ["dim-label", "caption"], 
+        xalign: 0,
+        wrap: true
+      });
+      headerBox.append(title);
+      headerBox.append(instruction);
+
+      // Botões de controle próximos à lista
+      const controlsBox = new Gtk.Box({ orientation: Gtk.Orientation.HORIZONTAL, spacing: 6 });
+      
+      const selectAllBtn = new Gtk.Button({ 
+        icon_name: "object-select-symbolic", 
+        tooltip_text: "Selecionar/Deselecionar Todas", 
+        css_classes: ["flat"]
+      });
       selectAllBtn.connect("clicked", () => {
-        if (this._selectedNetworks.size === this._lastNetworksSize) { this._selectedNetworks.clear(); }
-        else { (this._lastNetworksList || []).forEach(n => this._selectedNetworks.set(n.ssid, this._selectedNetworks.get(n.ssid) || [])); }
+        if (this._selectedNetworks.size === this._lastNetworksSize) { 
+          this._selectedNetworks.clear(); 
+        } else { 
+          (this._lastNetworksList || []).forEach(n => this._selectedNetworks.set(n.ssid, this._selectedNetworks.get(n.ssid) || [])); 
+        }
         this._updateNetworksList(this._lastNetworksList || []);
         this._updateCharts();
       });
 
-      const headerBoxEnd = new Gtk.Box({ orientation: Gtk.Orientation.HORIZONTAL, spacing: 6 });
-      headerBoxEnd.append(selectAllBtn);
-      headerBoxEnd.append(this._pauseButton);
-      headerBoxEnd.append(this._clearButton);
-      headerBar.pack_end(headerBoxEnd);
-      toolbarView.add_top_bar(headerBar);
+      this._pauseButton = new Gtk.ToggleButton({ 
+        icon_name: "media-playback-pause-symbolic", 
+        tooltip_text: "Pausar/Retomar atualizações", 
+        css_classes: ["flat"]
+      });
+      this._pauseButton.connect("toggled", () => {
+        if (this._pauseButton.get_active()) { 
+          this._stopUpdates(); 
+          this._pauseButton.set_icon_name("media-playback-start-symbolic"); 
+        } else { 
+          this._startRealTimeUpdates(); 
+          this._pauseButton.set_icon_name("media-playback-pause-symbolic"); 
+        }
+      });
 
-      // Conteúdo principal com Paned
-      const paned = new Gtk.Paned({ orientation: Gtk.Orientation.HORIZONTAL, hexpand: true, vexpand: true });
-      this._leftPanel = this._createNetworkSelectionPanel();
-      this._rightPanel = this._createChartsPanel();
-      paned.set_start_child(this._leftPanel);
-      paned.set_end_child(this._rightPanel);
-      paned.set_position(280);
-      toolbarView.set_content(paned);
-    }
+      this._clearButton = new Gtk.Button({ 
+        icon_name: "edit-clear-symbolic", 
+        tooltip_text: "Limpar todos os dados", 
+        css_classes: ["flat", "destructive-action"]
+      });
+      this._clearButton.connect("clicked", () => this._clearAllData());
 
-    _createNetworkSelectionPanel() {
-      const clamp = new Adw.Clamp({ tightening_threshold: 320 });
-      const box = new Gtk.Box({ orientation: Gtk.Orientation.VERTICAL, spacing: 6, vexpand: true });
+      controlsBox.append(selectAllBtn);
+      controlsBox.append(this._pauseButton);
+      controlsBox.append(this._clearButton);
 
-      const title = new Gtk.Label({ label: "Redes", css_classes: ["title-4"], xalign: 0 });
-      box.append(title);
+      // Lista de redes
+      this._networksList = new Gtk.ListBox({ 
+        selection_mode: Gtk.SelectionMode.NONE, 
+        vexpand: true, 
+        css_classes: ["boxed-list"] 
+      });
+      const scrolled = new Gtk.ScrolledWindow({ 
+        child: this._networksList, 
+        vexpand: true,
+        hscrollbar_policy: Gtk.PolicyType.NEVER
+      });
 
-      this._networksList = new Gtk.ListBox({ selection_mode: Gtk.SelectionMode.NONE, vexpand: true, css_classes: ["boxed-list"] });
-      const scrolled = new Gtk.ScrolledWindow({ child: this._networksList, vexpand: true });
-      box.append(scrolled);
-      clamp.set_child(box);
-      return clamp;
+      panel.append(headerBox);
+      panel.append(controlsBox);
+      panel.append(scrolled);
+      
+      return panel;
     }
 
     _createChartsPanel() {
-      const outer = new Gtk.Box({ orientation: Gtk.Orientation.VERTICAL, spacing: 0, hexpand: true, vexpand: true });
-      const clamp = new Adw.Clamp({ tightening_threshold: 600 });
-      const box = new Gtk.Box({ orientation: Gtk.Orientation.VERTICAL, spacing: 12, vexpand: true });
+      const panel = new Gtk.Box({ 
+        orientation: Gtk.Orientation.VERTICAL, 
+        spacing: 12, 
+        hexpand: true, 
+        vexpand: true,
+        css_classes: ["charts-panel"]
+      });
+      panel.set_margin_start(12);
+      panel.set_margin_end(12);
+      panel.set_margin_top(12);
+      panel.set_margin_bottom(12);
 
-      const switcherBar = new Gtk.Box({ orientation: Gtk.Orientation.HORIZONTAL, spacing: 12, css_classes: ["toolbar"] });
-      const label = new Gtk.Label({ label: "Visualização", css_classes: ["dim-label"], xalign: 0 });
+      // Seletor de visualização
+      const headerBox = new Gtk.Box({ orientation: Gtk.Orientation.HORIZONTAL, spacing: 12 });
+      const viewLabel = new Gtk.Label({ 
+        label: "Visualização", 
+        css_classes: ["title-4"], 
+        xalign: 0,
+        hexpand: true
+      });
+      
       this._viewSelector = new Adw.ViewSwitcher();
       const viewStack = new Adw.ViewStack();
       this._viewSelector.set_stack(viewStack);
-      switcherBar.append(label);
-      switcherBar.append(this._viewSelector);
+      
+      headerBox.append(viewLabel);
+      headerBox.append(this._viewSelector);
 
+      // Criação dos gráficos
       this._charts = new Map();
       const signalChart = new ChartWidget({ chart_type: "line" });
       const spectrumChart = new ChartWidget({ chart_type: "spectrum" });
@@ -104,16 +215,23 @@ var RealtimeCharts = GObject.registerClass(
       this._charts.set("channel-map", channelChart);
       this._charts.set("signal-bars", strengthChart);
 
-      this._emptyStatus = new Adw.StatusPage({ icon_name: "info-symbolic", title: "Nenhuma rede selecionada", description: "Ative os interruptores na lista à esquerda para visualizar dados." });
-      const overlay = new Gtk.Overlay({ child: viewStack });
+      // StatusPage melhorada para estado vazio
+      this._emptyStatus = new Adw.StatusPage({ 
+        icon_name: "network-wireless-symbolic", 
+        title: "Selecione redes para visualizar", 
+        description: "Use os interruptores na lista à esquerda para escolher quais redes monitorar nos gráficos em tempo real.",
+        vexpand: true,
+        hexpand: true
+      });
+      
+      const overlay = new Gtk.Overlay({ child: viewStack, vexpand: true, hexpand: true });
       overlay.add_overlay(this._emptyStatus);
       this._emptyStatus.set_visible(true);
 
-      box.append(switcherBar);
-      box.append(overlay);
-      clamp.set_child(box);
-      outer.append(clamp);
-      return outer;
+      panel.append(headerBox);
+      panel.append(overlay);
+      
+      return panel;
     }
 
     _startRealTimeUpdates() {
@@ -144,6 +262,18 @@ var RealtimeCharts = GObject.registerClass(
       this._lastNetworksList = networks;
       this._lastNetworksSize = networks.length;
       this._updateNetworksList(networks);
+      
+      // Auto-selecionar rede com maior sinal (provável rede conectada) na primeira vez
+      if (this._selectedNetworks.size === 0 && networks.length > 0) {
+        const strongestNetwork = networks.reduce((prev, current) => 
+          (prev.signal > current.signal) ? prev : current
+        );
+        if (strongestNetwork && strongestNetwork.signal > 70) { // Apenas se sinal for forte
+          this._selectedNetworks.set(strongestNetwork.ssid, []);
+          this._updateNetworksList(networks); // Atualizar UI para mostrar seleção
+        }
+      }
+      
       const now = Date.now();
       networks.forEach(n => {
         if (this._selectedNetworks.has(n.ssid)) {
@@ -162,16 +292,48 @@ var RealtimeCharts = GObject.registerClass(
         this._networksList.remove(child);
         child = next;
       }
-      networks.forEach(net => {
-        const row = new Adw.ActionRow({ title: net.ssid || "(Oculta)", subtitle: `${net.signal}% • Ch ${net.channel}` });
-        const toggle = new Gtk.Switch({ active: this._selectedNetworks.has(net.ssid), valign: Gtk.Align.CENTER });
+      
+      // Ordenar por sinal (mais forte primeiro) para facilitar identificação da rede conectada
+      const sortedNetworks = [...networks].sort((a, b) => b.signal - a.signal);
+      
+      sortedNetworks.forEach(net => {
+        const row = new Adw.ActionRow({ 
+          title: net.ssid || "(Oculta)", 
+          subtitle: `${net.signal}% • Canal ${net.channel} • ${net.frequency} MHz`
+        });
+        
+        // Ícone indicativo de força do sinal
+        const signalIcon = this._getSignalIcon(net.signal);
+        const strengthClass = net.signal >= 75 ? 'wifi-strong' : net.signal >= 50 ? 'wifi-medium' : 'wifi-weak';
+        const iconImg = new Gtk.Image({ 
+          icon_name: signalIcon, 
+          css_classes: [strengthClass],
+          valign: Gtk.Align.CENTER 
+        });
+        row.add_prefix(iconImg);
+        
+        const toggle = new Gtk.Switch({ 
+          active: this._selectedNetworks.has(net.ssid), 
+          valign: Gtk.Align.CENTER 
+        });
         toggle.connect("notify::active", () => {
-          if (toggle.get_active()) this._selectedNetworks.set(net.ssid, this._selectedNetworks.get(net.ssid) || []); else this._selectedNetworks.delete(net.ssid);
+          if (toggle.get_active()) {
+            this._selectedNetworks.set(net.ssid, this._selectedNetworks.get(net.ssid) || []);
+          } else {
+            this._selectedNetworks.delete(net.ssid);
+          }
           this._updateCharts();
         });
         row.add_suffix(toggle);
         this._networksList.append(row);
       });
+    }
+
+    _getSignalIcon(signal) {
+      if (signal >= 75) return "network-wireless-signal-excellent-symbolic";
+      if (signal >= 50) return "network-wireless-signal-good-symbolic";
+      if (signal >= 25) return "network-wireless-signal-ok-symbolic";
+      return "network-wireless-signal-weak-symbolic";
     }
 
     _updateCharts() {
