@@ -116,10 +116,6 @@ var WifiAnalyzerWindow = GObject.registerClass(
       this.set_content(this._splitView);
 
       // Ações da janela
-      const selectAllAction = new Gio.SimpleAction({ name: "selectAll" });
-      selectAllAction.connect("activate", () => this._selectAllNetworks(true));
-      this.add_action(selectAllAction);
-
       const deselectAllAction = new Gio.SimpleAction({ name: "deselectAll" });
       deselectAllAction.connect("activate", () =>
         this._selectAllNetworks(false)
@@ -186,7 +182,6 @@ var WifiAnalyzerWindow = GObject.registerClass(
       
       // Botões de Seleção na Sidebar
       const selectionMenuModel = Gio.Menu.new();
-      selectionMenuModel.append("Selecionar Todas", "win.selectAll");
       selectionMenuModel.append("Desselecionar Todas", "win.deselectAll");
       const selectionMenu = new Gtk.MenuButton({
         icon_name: "edit-select-all-symbolic",
@@ -239,9 +234,18 @@ var WifiAnalyzerWindow = GObject.registerClass(
     _onNetworksUpdated(networks) {
       this._lastNetworks = [...networks].sort((a, b) => b.signal - a.signal);
 
-      // Manter o histórico para os gráficos
+      // Automaticamente selecionar novas redes e manter o histórico para os gráficos
       const now = Date.now();
       networks.forEach((n) => {
+        // Selecionar automaticamente redes que ainda não estão selecionadas
+        if (!this._selectedNetworks.has(n.bssid)) {
+          this._selectedNetworks.set(n.bssid, {
+            name: n.ssid,
+            history: [],
+          });
+        }
+        
+        // Manter o histórico para redes selecionadas
         if (this._selectedNetworks.has(n.bssid)) {
           const history = this._selectedNetworks.get(n.bssid).history;
           history.push({
