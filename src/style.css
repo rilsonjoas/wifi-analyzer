@@ -70,7 +70,37 @@ viewstack {
   background-color: transparent;
 }
 
-viewswitcher {
+/* ViewSwitcher no HeaderBar - estilo GNOME padrão */
+headerbar viewswitcher {
+  margin: 0;
+  background-color: transparent;
+  border-radius: 0;
+  padding: 0;
+  border: none;
+}
+
+headerbar viewswitcher button {
+  border-radius: 0;
+  margin: 0;
+  padding: 6px 16px;
+  border: none;
+  background-color: transparent;
+  min-height: 32px;
+  font-weight: 500;
+}
+
+headerbar viewswitcher button:checked {
+  background-color: rgba(53, 132, 228, 0.15);
+  color: #3584e4;
+  border-bottom: 2px solid #3584e4;
+}
+
+headerbar viewswitcher button:hover:not(:checked) {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+/* ViewSwitcher standalone (caso seja usado em outro lugar) */
+viewswitcher:not(headerbar viewswitcher) {
   margin: 6px 12px;
   background-color: rgba(255, 255, 255, 0.5);
   border-radius: 8px;
@@ -78,7 +108,7 @@ viewswitcher {
   border: 1px solid rgba(0, 0, 0, 0.1);
 }
 
-viewswitcher button {
+viewswitcher:not(headerbar viewswitcher) button {
   border-radius: 6px;
   margin: 0;
   padding: 8px 16px;
@@ -86,7 +116,7 @@ viewswitcher button {
   background-color: transparent;
 }
 
-viewswitcher button:checked {
+viewswitcher:not(headerbar viewswitcher) button:checked {
   background-color: #3584e4;
   color: white;
 }
@@ -131,9 +161,19 @@ row:hover {
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.dark viewswitcher {
+.dark viewswitcher:not(headerbar viewswitcher) {
   background-color: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.dark headerbar viewswitcher button:checked {
+  background-color: rgba(53, 132, 228, 0.25);
+  color: #78aeed;
+  border-bottom: 2px solid #78aeed;
+}
+
+.dark headerbar viewswitcher button:hover:not(:checked) {
+  background-color: rgba(255, 255, 255, 0.05);
 }
 
 .dark chartwidget {
@@ -148,4 +188,112 @@ overlaysplitview sidebar {
 
 overlaysplitview sidebar listbox {
   margin: 6px;
+}
+
+/* === NOVOS COMPONENTES - NETWORK DETAILS E TELEMETRIA === */
+
+/* Estilo dos botões de informação */
+.network-info-button {
+  opacity: 0.7;
+  transition: all 0.2s ease;
+}
+
+.network-info-button:hover {
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+/* Telemetry window específico */
+.telemetry-stats {
+  background-color: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  padding: 12px;
+  margin: 6px;
+}
+
+.telemetry-value {
+  font-size: 24px;
+  font-weight: bold;
+  color: #3584e4;
+}
+
+/* Hunt mode indicadores */
+.hunt-target {
+  border-left: 4px solid #3584e4;
+  background-color: rgba(53, 132, 228, 0.1);
+}
+
+.hunt-active {
+  background-color: rgba(237, 51, 59, 0.1);
+  border: 2px solid #ed333b;
+}
+
+/* Status indicators */
+.status-connected {
+  color: #26a269;
+}
+
+.status-connecting {
+  color: #f5c211;
+}
+
+.status-disconnected {
+  color: #e01b24;
+}
+
+/* Network details dialog */
+.network-details-group {
+  margin: 12px 0;
+}
+
+.network-security-level {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: bold;
+}
+
+.security-high {
+  background-color: rgba(38, 162, 105, 0.2);
+  color: #26a269;
+}
+
+.security-medium {
+  background-color: rgba(245, 194, 17, 0.2);
+  color: #f5c211;
+}
+
+.security-low {
+  background-color: rgba(224, 27, 36, 0.2);
+  color: #e01b24;
+}
+
+/* GPS status */
+.gps-active {
+  color: #26a269;
+}
+
+.gps-searching {
+  color: #f5c211;
+}
+
+.gps-disabled {
+  color: #e01b24;
+}
+
+/* Charts drawing areas */
+.chart-area {
+  background-color: #ffffff;
+  border: 1px solid #d0d7de;
+  border-radius: 8px;
+}
+
+.dark .chart-area {
+  background-color: #0d1117;
+  border: 1px solid #30363d;
+}
+
+/* Export buttons */
+.export-button {
+  margin: 4px;
 }

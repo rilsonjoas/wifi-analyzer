@@ -1,6 +1,6 @@
 // application.js
 
-const { GObject, Gio, Gdk, Gtk, Adw } = imports.gi;
+const { GObject, Gio, Gdk, Gtk, Adw, GLib } = imports.gi;
 const { WifiAnalyzerWindow } = imports.window;
 const { PreferencesWindow } = imports.preferencesWindow;
 
@@ -43,12 +43,14 @@ var WifiAnalyzerApplication = GObject.registerClass(
     _loadCSS() {
       try {
         const provider = new Gtk.CssProvider();
-        // Tentar múltiplos caminhos para o CSS
+        // Para desenvolvimento, usar caminho absoluto primeiro
+        const currentDir = GLib.get_current_dir();
         const paths = [
+          `${currentDir}/src/style.css`,                // Desenvolvimento (absoluto)
+          "./src/style.css",                            // Desenvolvimento (relativo)
+          "src/style.css",                               // Desenvolvimento (simples)
           "/usr/local/share/wifi-analyzer/style.css",  // Instalação local
           "/app/share/wifi-analyzer/style.css",         // Flatpak
-          "./src/style.css",                            // Desenvolvimento
-          "src/style.css"                               // Desenvolvimento (relativo)
         ];
         
         let loaded = false;

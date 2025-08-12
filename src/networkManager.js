@@ -1,4 +1,7 @@
 const { GObject, Gio, GLib } = imports.gi;
+const { GPSManager } = imports.gpsManager;
+const { AdvancedNetworkAnalyzer } = imports.advancedNetworkAnalyzer;
+const { DataExporter } = imports.dataExporter;
 
 const APP_ID = "com.example.WifiAnalyzer";
 const SIGNAL_DROP_THRESHOLD = 20;
@@ -9,7 +12,15 @@ let ENV_DEV_MODE = GLib.getenv("WIFI_ANALYZER_DEV") === "1";
 let ENV_DEBUG = GLib.getenv("WIFI_ANALYZER_DEBUG") === "1";
 
 var NetworkManager = GObject.registerClass(
-  { GTypeName: "NetworkManager", Signals: { "networks-updated": { param_types: [GObject.TYPE_JSOBJECT] }, "scan-started": {} } },
+  { 
+    GTypeName: "NetworkManager", 
+    Signals: { 
+      "networks-updated": { param_types: [GObject.TYPE_JSOBJECT] }, 
+      "scan-started": {},
+      "hunt-mode-changed": { param_types: [GObject.TYPE_BOOLEAN] },
+      "export-completed": { param_types: [GObject.TYPE_STRING] }
+    } 
+  },
   class NetworkManager extends GObject.Object {
     _init(params = {}) {
       super._init();
@@ -21,11 +32,21 @@ var NetworkManager = GObject.registerClass(
       this._networkHistory = new Map();
       this._notificationCooldowns = new Map();
       this._warnedNoNmcli = false;
+
+      // Novos componentes avançados
+      this._gpsManager = new GPSManager();
+      this._advancedAnalyzer = new AdvancedNetworkAnalyzer();
+      this._dataExporter = new DataExporter();
+      
+      // Configurar integração GPS com analyzer
+      this._advancedAnalyzer.setGPSManager(this._gpsManager);
+      
       // Debug / Dev via GSettings (env tem precedência)
       this._devMode = ENV_DEV_MODE || this.settings.get_boolean("enable-dev-mode");
       this._debug = ENV_DEBUG || this.settings.get_boolean("enable-debug-logging");
       this.settings.connect("changed::enable-dev-mode", () => { if (!ENV_DEV_MODE) { this._devMode = this.settings.get_boolean("enable-dev-mode"); } });
       this.settings.connect("changed::enable-debug-logging", () => { if (!ENV_DEBUG) { this._debug = this.settings.get_boolean("enable-debug-logging"); } });
+      
       // Estado D-Bus
       this._nmProxy = null;
       this._deviceProxies = [];
@@ -34,6 +55,16 @@ var NetworkManager = GObject.registerClass(
       this._startedAt = Date.now();
       this._notificationsDisabled = DISABLE_NET_NOTIFICATIONS || !this.settings.get_boolean("enable-notifications");
       this.settings.connect("changed::enable-notifications", () => { this._notificationsDisabled = DISABLE_NET_NOTIFICATIONS || !this.settings.get_boolean("enable-notifications"); });
+      
+      // Conectar sinais do analyzer avançado
+      this._advancedAnalyzer.connect('hunt-target-updated', (source, target) => {
+        this._log(`Hunt target updated: ${target.ssid || target.bssid} - Signal: ${target.strongestSignal}dBm`);
+      });
+      
+      this._advancedAnalyzer.connect('spectrum-interference-detected', (source, message, frequency) => {
+        this._log(`Spectrum interference: ${message}`);
+      });
+      
       if (!this._devMode) this._initDbus();
     }
 
@@ -342,7 +373,178 @@ var NetworkManager = GObject.registerClass(
 
       this._processChanges(mockNetworks);
       this._networks = mockNetworks;
+      
+      // Adicionar coordenadas GPS aos dados se disponível
+      if (this._gpsManager.isValid()) {
+        const currentGPS = this._gpsManager.getCurrentLocation();
+        for (const network of this._networks) {
+          network.gps = currentGPS;
+        }
+      }
+      
+      // Atualizar analyzer avançado
+      this._advancedAnalyzer.updateNetworkData(this._networks);
+      
       this.emit("networks-updated", this._networks);
+    }
+
+    // ===== MÉTODOS AVANÇADOS =====
+    
+    // GPS Management
+    enableGPS() {
+      this._gpsManager.enable();
+      this._log("GPS enabled");
+    }
+
+    disableGPS() {
+      this._gpsManager.disable();
+      this._log("GPS disabled");
+    }
+
+    isGPSEnabled() {
+      return this._gpsManager.isEnabled();
+    }
+
+    getCurrentLocation() {
+      return this._gpsManager.getCurrentLocation();
+    }
+
+    // Hunt Mode
+    enableHuntMode() {
+      this._advancedAnalyzer.enableHuntMode();
+      
+      // Aumentar frequência de scan
+      if (this._monitoringInterval) {
+        GLib.source_remove(this._monitoringInterval);
+        this._monitoringInterval = GLib.timeout_add(
+          GLib.PRIORITY_DEFAULT,
+          this._advancedAnalyzer.getUpdateInterval(),
+          () => {
+            this.scanNetworks();
+            return GLib.SOURCE_CONTINUE;
+          }
+        );
+      }
+      
+      this.emit('hunt-mode-changed', true);
+      this._log("Hunt mode enabled - High frequency scanning activated");
+    }
+
+    disableHuntMode() {
+      this._advancedAnalyzer.disableHuntMode();
+      
+      // Voltar à frequência normal
+      if (this._monitoringInterval) {
+        GLib.source_remove(this._monitoringInterval);
+        this._monitoringInterval = GLib.timeout_add(
+          GLib.PRIORITY_DEFAULT,
+          this._advancedAnalyzer.getUpdateInterval(),
+          () => {
+            this.scanNetworks();
+            return GLib.SOURCE_CONTINUE;
+          }
+        );
+      }
+      
+      this.emit('hunt-mode-changed', false);
+      this._log("Hunt mode disabled - Normal scanning resumed");
+    }
+
+    isHuntModeEnabled() {
+      return this._advancedAnalyzer.isHuntModeEnabled();
+    }
+
+    addHuntTarget(bssid, ssid = "") {
+      return this._advancedAnalyzer.addHuntTarget(bssid, ssid);
+    }
+
+    removeHuntTarget(bssid) {
+      this._advancedAnalyzer.removeHuntTarget(bssid);
+    }
+
+    getHuntTargets() {
+      return this._advancedAnalyzer.getHuntTargets();
+    }
+
+    isHuntTarget(bssid) {
+      const targets = this._advancedAnalyzer.getHuntTargets();
+      return targets.some(target => target.bssid === bssid);
+    }
+
+    // Data Export/Import
+    async exportData(format = 'json', filename = null, includeGPS = true) {
+      try {
+        const data = this._dataExporter.exportNetworks(this._networks, format, includeGPS);
+        
+        if (filename) {
+          const success = await this._dataExporter.saveToFile(data, filename, format);
+          if (success) {
+            this.emit('export-completed', filename);
+            this._log(`Data exported to ${filename}`);
+            return { success: true, filename: filename };
+          } else {
+            return { success: false, error: "Failed to save file" };
+          }
+        } else {
+          return { success: true, data: data };
+        }
+      } catch (error) {
+        this._log(`Export failed: ${error.message}`);
+        return { success: false, error: error.message };
+      }
+    }
+
+    async importData(filename) {
+      try {
+        const data = await this._dataExporter.loadFromFile(filename);
+        if (data) {
+          this._log(`Data imported from ${filename}`);
+          return { success: true, data: data };
+        } else {
+          return { success: false, error: "Failed to load file" };
+        }
+      } catch (error) {
+        this._log(`Import failed: ${error.message}`);
+        return { success: false, error: error.message };
+      }
+    }
+
+    // Channel Analysis
+    getChannelAnalysis(channel) {
+      return this._advancedAnalyzer.getChannelAnalysis(channel);
+    }
+
+    getAllChannelsAnalysis() {
+      const analysis = {};
+      for (let channel = 1; channel <= 14; channel++) {
+        analysis[channel] = this.getChannelAnalysis(channel);
+      }
+      return analysis;
+    }
+
+    // Advanced Reports
+    generateAdvancedReport() {
+      const huntData = this.getHuntTargets().map(target => ({
+        bssid: target.bssid,
+        ssid: target.ssid,
+        strongestSignal: target.strongestSignal,
+        dataPoints: target.history.length,
+        statistics: target.getSignalStatistics(),
+        trend: target.getRecentSignalTrend()
+      }));
+
+      const channelAnalysis = this.getAllChannelsAnalysis();
+      
+      return this._dataExporter.generateAnalysisReport(
+        this._networks, 
+        channelAnalysis, 
+        huntData
+      );
+    }
+
+    // Export hunt data specifically
+    exportHuntData(format = 'json') {
+      return this._advancedAnalyzer.exportHuntData(format);
     }
 
     _frequencyToChannel(frequency) {

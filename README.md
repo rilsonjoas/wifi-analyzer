@@ -1,14 +1,41 @@
-# WiFi Analyzer
+# WiFi Analyzer - Analisador WiFi Avançado
 
-> Estado: **Fase inicial de desenvolvimento (pre-alpha)** – funcionalidades principais em construção, interface e backend em rápida evolução. Instável para uso diário.
+> Estado: **Versão Beta Avançada** – Funcionalidades principais implementadas, incluindo Hunt Mode, GPS, telemetria e compatibilidade completa com Sparrow-wifi. Interface madura e estável.
 
-## Objetivo
-Fornecer uma aplicação moderna para GNOME que permita:
-- Visualizar redes Wi‑Fi próximas em tempo real (2.4 / 5 / 6 GHz) com agrupamento por banda.
-- Monitorar intensidade de sinal e variações (gráficos em tempo real).
-- Analisar congestão de canais e sugerir canais ideais por banda.
-- Exibir detalhes avançados (segurança, canal, frequência, BSSID, força de sinal).
-- Fornecer visual moderno alinhado com Libadwaita e tema dinâmico claro/escuro.
+## 🚀 Funcionalidades Principais
+
+### 📊 Análise Básica de WiFi
+- **Escaneamento em tempo real** de redes WiFi próximas (2.4/5/6 GHz)
+- **Gráficos dinâmicos** de sinal vs tempo, espectro, mapa de canais e força do sinal
+- **Lista organizada** com informações detalhadas de cada rede
+- **Seleção múltipla** para comparar várias redes simultaneamente
+- **Agrupamento por banda** e ordenação inteligente
+
+### 🎯 Hunt Mode (Rastreamento Avançado)
+- **Modo Hunt** para rastreamento específico de redes-alvo
+- **Telemetria em tempo real** com histórico de sinal
+- **Análise de tendências** (melhorando/piorando/estável)
+- **Interface de telemetria dedicada** com gráficos e estatísticas
+- **Compatibilidade total** com Sparrow-wifi
+
+### 📍 Integração GPS
+- **Localização automática** com coordenadas GPS
+- **Mapeamento de redes** por localização
+- **Precisão de posicionamento** para análise geográfica
+- **Simulação GPS** para teste (quando hardware não disponível)
+
+### 🔍 Detalhes Avançados de Rede
+- **Dialog de informações completas** para cada rede (botão ℹ️)
+- **Análise de segurança** com níveis e recomendações
+- **Estimativa de distância** baseada em força do sinal
+- **Lookup de fabricante** via OUI (Organizationally Unique Identifier)
+- **Histórico de detecções** e estatísticas de sinal
+
+### 📁 Exportação e Importação
+- **Múltiplos formatos**: JSON, CSV, Sparrow-wifi compatible
+- **Exportação seletiva** de redes específicas ou conjuntos completos
+- **Compatibilidade total** com dados do Sparrow-wifi
+- **Importação de dados** existentes para análise
 
 ## Principais Tecnologias
 - **GJS** (JavaScript para GNOME)

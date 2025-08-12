@@ -5,6 +5,24 @@ const { ChartWidget } = imports.chartWidget;
 const { ThemeSelector } = imports.themeSelector; // Nosso novo widget
 const { NetworkManager } = imports.networkManager;
 
+// Tentar importar os novos módulos
+let NetworkDetailsDialog, TelemetryWindow;
+try {
+  const networkDetailsModule = imports.networkDetailsDialog;
+  NetworkDetailsDialog = networkDetailsModule.NetworkDetailsDialog;
+  print("DEBUG: NetworkDetailsDialog importado com sucesso");
+} catch (error) {
+  print(`ERRO: Falha ao importar NetworkDetailsDialog - ${error.message}`);
+}
+
+try {
+  const telemetryModule = imports.telemetryWindow;
+  TelemetryWindow = telemetryModule.TelemetryWindow;
+  print("DEBUG: TelemetryWindow importado com sucesso");
+} catch (error) {
+  print(`ERRO: Falha ao importar TelemetryWindow - ${error.message}`);
+}
+
 var WifiAnalyzerWindow = GObject.registerClass(
   {
     GTypeName: "WifiAnalyzerWindow",
@@ -20,6 +38,7 @@ var WifiAnalyzerWindow = GObject.registerClass(
 
       this._selectedNetworks = new Map();
       this._lastNetworks = []; // Para referência
+      this._telemetryWindow = null; // Janela de telemetria
 
       this._buildUI();
       this._setupThemeManagement();
@@ -49,9 +68,13 @@ var WifiAnalyzerWindow = GObject.registerClass(
       // 2. Conteúdo principal com ToolbarView (lado direito)
       const toolbarView = new Adw.ToolbarView();
       
+      // Criar o painel de gráficos primeiro para obter o ViewSwitcher
+      const chartsContent = this._createChartsPanel();
+      
       // HeaderBar no conteúdo principal
       const headerBar = new Adw.HeaderBar({
         show_end_title_buttons: true,
+        title_widget: chartsContent.viewSwitcher, // Mover as abas para o HeaderBar
       });
 
       // Menu "Hambúrguer" com ThemeSelector
@@ -86,7 +109,7 @@ var WifiAnalyzerWindow = GObject.registerClass(
       });
 
       toolbarView.add_top_bar(headerBar);
-      toolbarView.set_content(this._createChartsPanel());
+      toolbarView.set_content(chartsContent.viewStack); // Usar apenas o ViewStack
       
       this._splitView.set_content(toolbarView);
       
@@ -117,7 +140,10 @@ var WifiAnalyzerWindow = GObject.registerClass(
     // Cria o painel de gráficos à direita
     _createChartsPanel() {
       const viewStack = new Adw.ViewStack({ vexpand: true, hexpand: true });
-      const viewSwitcher = new Adw.ViewSwitcher({ stack: viewStack });
+      const viewSwitcher = new Adw.ViewSwitcher({ 
+        stack: viewStack,
+        policy: Adw.ViewSwitcherPolicy.WIDE, // Para mostrar os títulos das abas
+      });
 
       this._charts = new Map();
       const chartTypes = [
@@ -135,15 +161,11 @@ var WifiAnalyzerWindow = GObject.registerClass(
         viewStack.add_titled(chart, chartInfo.id, chartInfo.title).set_icon_name(chartInfo.icon);
       });
 
-      const mainContentBox = new Gtk.Box({
-        orientation: Gtk.Orientation.VERTICAL,
-        spacing: 6,
-      });
-      
-      mainContentBox.append(viewSwitcher);
-      mainContentBox.append(viewStack);
-
-      return mainContentBox;
+      // Retornar tanto o ViewStack quanto o ViewSwitcher
+      return {
+        viewStack: viewStack,
+        viewSwitcher: viewSwitcher
+      };
     }
 
     // Cria a barra lateral à esquerda - COM HEADER PRÓPRIO como Mission Center
@@ -182,6 +204,18 @@ var WifiAnalyzerWindow = GObject.registerClass(
         this._networkManager.scanNetworks();
       });
       sidebarHeader.pack_end(refreshButton);
+
+      // Botão de telemetria na sidebar
+      const telemetryButton = new Gtk.Button({
+        icon_name: "speedometer-symbolic",
+        tooltip_text: "Abrir Telemetria e Hunt Mode",
+      });
+      telemetryButton.connect('clicked', () => {
+        print("DEBUG: Botão de telemetria no header clicado!");
+        print("DEBUG: TelemetryWindow disponível?", !!TelemetryWindow);
+        this._openTelemetryWindow();
+      });
+      sidebarHeader.pack_end(telemetryButton);
 
       sidebarBox.append(sidebarHeader);
 
@@ -271,8 +305,31 @@ var WifiAnalyzerWindow = GObject.registerClass(
           this._updateCharts();
         });
 
+        // Botão de informações detalhadas
+        const infoButton = new Gtk.Button({
+          icon_name: "dialog-information-symbolic",
+          css_classes: ["flat", "circular"],
+          tooltip_text: "Ver detalhes da rede",
+          valign: Gtk.Align.CENTER,
+        });
+
+        infoButton.connect('clicked', () => {
+          print(`DEBUG: Botão de informação clicado para rede ${net.ssid || '(Oculta)'}!`);
+          print(`DEBUG: BSSID: ${net.bssid}, Canal: ${net.channel}, Sinal: ${net.signal}%`);
+          this._showNetworkDetails(net);
+        });
+
+        // Container para os controles à direita
+        const suffixBox = new Gtk.Box({
+          spacing: 6,
+          orientation: Gtk.Orientation.HORIZONTAL,
+        });
+
+        suffixBox.append(infoButton);
+        suffixBox.append(toggle);
+
         row.add_prefix(signalBox);
-        row.add_suffix(toggle);
+        row.add_suffix(suffixBox);
         row.activatable_widget = toggle;
 
         this._networksList.append(row);
@@ -344,6 +401,117 @@ var WifiAnalyzerWindow = GObject.registerClass(
       if (signal >= 50) return "network-wireless-signal-good-symbolic";
       if (signal >= 25) return "network-wireless-signal-ok-symbolic";
       return "network-wireless-signal-weak-symbolic";
+    }
+
+    // Mostrar detalhes de uma rede
+    _showNetworkDetails(networkData) {
+      print("DEBUG: _showNetworkDetails chamado");
+      print("DEBUG: NetworkDetailsDialog disponível?", !!NetworkDetailsDialog);
+      print("DEBUG: networkData:", JSON.stringify(networkData, null, 2));
+      
+      if (!NetworkDetailsDialog) {
+        print("ERRO: NetworkDetailsDialog não foi carregado");
+        
+        // Tentar importar novamente
+        try {
+          const networkDetailsModule = imports.networkDetailsDialog;
+          NetworkDetailsDialog = networkDetailsModule.NetworkDetailsDialog;
+          print("DEBUG: NetworkDetailsDialog reimportado com sucesso");
+        } catch (error) {
+          print(`ERRO: Falha ao reimportar NetworkDetailsDialog - ${error.message}`);
+          return;
+        }
+      }
+      
+      try {
+        print("DEBUG: Criando instância do NetworkDetailsDialog...");
+        const detailsDialog = new NetworkDetailsDialog({
+          parent: this,
+          networkData: networkData,
+          networkManager: this._networkManager
+        });
+
+        print("DEBUG: Conectando signal open-telemetry-requested...");
+        detailsDialog.connect('open-telemetry-requested', (source, bssid) => {
+          print("DEBUG: Signal open-telemetry-requested recebido, BSSID:", bssid);
+          this._openTelemetryWindow(bssid);
+        });
+
+        print("DEBUG: Apresentando dialog...");
+        detailsDialog.present();
+        print("DEBUG: Dialog de detalhes apresentado com sucesso");
+      } catch (error) {
+        print(`ERRO: _showNetworkDetails - ${error.message}`);
+        print("ERRO: Stack trace:", error.stack);
+      }
+    }
+
+    // Abrir janela de telemetria
+    _openTelemetryWindow(targetBssid = null) {
+      print("DEBUG: _openTelemetryWindow chamado");
+      print("DEBUG: TelemetryWindow disponível?", !!TelemetryWindow);
+      print("DEBUG: targetBssid:", targetBssid);
+      
+      if (!TelemetryWindow) {
+        print("ERRO: TelemetryWindow não foi carregado");
+        
+        // Tentar importar novamente
+        try {
+          const telemetryModule = imports.telemetryWindow;
+          TelemetryWindow = telemetryModule.TelemetryWindow;
+          print("DEBUG: TelemetryWindow reimportado com sucesso");
+        } catch (error) {
+          print(`ERRO: Falha ao reimportar TelemetryWindow - ${error.message}`);
+          return;
+        }
+      }
+      
+      try {
+        if (this._telemetryWindow) {
+          // Se já existe, apenas apresentar
+          print("DEBUG: Janela de telemetria já existe, apresentando...");
+          this._telemetryWindow.present();
+          if (targetBssid) {
+            print("DEBUG: Adicionando hunt target:", targetBssid);
+            this._telemetryWindow.addHuntTarget(targetBssid);
+          }
+          return;
+        }
+
+        print("DEBUG: Criando nova janela de telemetria...");
+        // Criar nova janela de telemetria
+        this._telemetryWindow = new TelemetryWindow({
+          transient_for: this,
+          networkManager: this._networkManager
+        });
+
+        print("DEBUG: Conectando signal close-request...");
+        // Quando a janela for fechada, limpar a referência
+        this._telemetryWindow.connect('close-request', () => {
+          print("DEBUG: Janela de telemetria sendo fechada");
+          this._telemetryWindow = null;
+          return false; // Permitir fechamento
+        });
+
+        print("DEBUG: Apresentando janela de telemetria...");
+        this._telemetryWindow.present();
+
+        // Se foi solicitado um alvo específico, adicioná-lo
+        if (targetBssid) {
+          print("DEBUG: Procurando network para targetBssid:", targetBssid);
+          const network = this._lastNetworks.find(n => n.bssid === targetBssid);
+          if (network) {
+            print("DEBUG: Network encontrada, adicionando hunt target:", network.ssid);
+            this._telemetryWindow.addHuntTarget(targetBssid, network.ssid);
+          } else {
+            print("DEBUG: Network não encontrada para BSSID:", targetBssid);
+          }
+        }
+        print("DEBUG: Janela de telemetria criada e apresentada com sucesso");
+      } catch (error) {
+        print(`ERRO: _openTelemetryWindow - ${error.message}`);
+        print("ERRO: Stack trace:", error.stack);
+      }
     }
 
     // Gerenciamento de tema
