@@ -1,0 +1,151 @@
+/* style.css - Estilo baseado no Mission Center */
+
+/* === SIDEBAR STYLING === */
+/* Sidebar sem background para integrar com a janela */
+overlaysplitview sidebar {
+  background-color: transparent;
+  border-right: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+/* Header da sidebar */
+overlaysplitview sidebar headerbar {
+  background-color: transparent;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+overlaysplitview sidebar headerbar.flat {
+  background-color: transparent;
+  box-shadow: none;
+}
+
+/* Lista de redes na sidebar */
+overlaysplitview sidebar scrolledwindow {
+  background-color: transparent;
+}
+
+overlaysplitview sidebar scrolledwindow viewport {
+  background-color: transparent;
+}
+
+overlaysplitview sidebar listbox {
+  background-color: transparent;
+  margin: 12px;
+  border-radius: 8px;
+}
+
+overlaysplitview sidebar listbox.boxed-list {
+  background-color: rgba(255, 255, 255, 0.5);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+/* === CHARTS AND CONTENT === */
+.light {
+  --chart-bg: white;
+  --chart-grid: rgba(0, 0, 0, 0.2);
+  --chart-axis: rgba(0, 0, 0, 0.5);
+  --chart-text: black;
+}
+
+.dark {
+  --chart-bg: #2d2d2d;
+  --chart-grid: rgba(255, 255, 255, 0.2);
+  --chart-axis: rgba(255, 255, 255, 0.5);
+  --chart-text: white;
+}
+
+chartwidget {
+  background-color: var(--chart-bg);
+  border-radius: 8px;
+  margin: 6px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+/* === MAIN CONTENT AREA === */
+overlaysplitview content {
+  background-color: transparent;
+}
+
+/* ViewStack e ViewSwitcher styling */
+viewstack {
+  background-color: transparent;
+}
+
+viewswitcher {
+  margin: 6px 12px;
+  background-color: rgba(255, 255, 255, 0.5);
+  border-radius: 8px;
+  padding: 3px;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+viewswitcher button {
+  border-radius: 6px;
+  margin: 0;
+  padding: 8px 16px;
+  border: none;
+  background-color: transparent;
+}
+
+viewswitcher button:checked {
+  background-color: #3584e4;
+  color: white;
+}
+
+/* === WINDOW STYLING === */
+window.background {
+  background-color: transparent;
+}
+
+/* === BUTTONS AND CONTROLS === */
+button.toggle {
+  border-radius: 6px;
+}
+
+button.toggle:checked {
+  background-color: #3584e4;
+  color: white;
+}
+
+/* === LIST ROWS === */
+row {
+  padding: 12px;
+  border-radius: 6px;
+  margin: 3px 6px;
+}
+
+row:hover {
+  background-color: rgba(53, 132, 228, 0.1);
+}
+
+/* === DARK THEME ADJUSTMENTS === */
+.dark overlaysplitview sidebar {
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.dark overlaysplitview sidebar headerbar {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.dark overlaysplitview sidebar listbox.boxed-list {
+  background-color: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.dark viewswitcher {
+  background-color: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.dark chartwidget {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* === MOBILE RESPONSIVENESS === */
+/* Configurações para telas menores */
+overlaysplitview sidebar {
+  min-width: 280px;
+}
+
+overlaysplitview sidebar listbox {
+  margin: 6px;
+}

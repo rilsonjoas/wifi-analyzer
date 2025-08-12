@@ -1,154 +1,159 @@
-/* Dynamic Theme Tokens */
-.root-dark { --bg:#1e1e1f; --bg-alt:#242425; --border:#3a3a3c; --text:#ececec; --text-dim:rgba(236,236,236,0.55); --accent:#588bff; --accent-alt:#6fa0ff; --success:#2ec27e; --warn:#f5c211; --error:#e01b24; }
-.root-light { --bg:#f6f7f9; --bg-alt:#ffffff; --border:#d0d4d9; --text:#202326; --text-dim:rgba(32,35,38,0.55); --accent:#1c71d8; --accent-alt:#3584e4; --success:#2ec27e; --warn:#b46900; --error:#c01c28; }
+/* Dynamic Theme Tokens - Mission Center Style */
+.root-dark { 
+  --bg: #1e1e1e; 
+  --bg-alt: #2d2d30; 
+  --bg-sidebar: #242424;
+  --border: #3d3d3d; 
+  --text: #ffffff; 
+  --text-dim: rgba(255,255,255,0.55); 
+  --accent: #0078d4; 
+  --accent-alt: #106ebe; 
+  --success: #2ec27e; 
+  --warn: #f5c211; 
+  --error: #e01b24; 
+}
 
-window { background: var(--bg); color: var(--text); transition: background .25s ease, color .25s ease; }
-headerbar { background: var(--bg-alt); border-bottom:1px solid var(--border); }
-headerbar button.flat:hover { background: rgba(88,139,255,0.12); }
+.root-light { 
+  --bg: #fafafa; 
+  --bg-alt: #ffffff; 
+  --bg-sidebar: #f5f5f5;
+  --border: #e1e1e1; 
+  --text: #323130; 
+  --text-dim: rgba(50,49,48,0.55); 
+  --accent: #0078d4; 
+  --accent-alt: #106ebe; 
+  --success: #2ec27e; 
+  --warn: #b46900; 
+  --error: #c01c28; 
+}
 
-/* Lista de redes com visual inspirado no GNOME Settings/Control Center */
-.boxed-list { border:1px solid var(--border); border-radius:12px; background: var(--bg-alt); }
-.boxed-list > row { 
-  border-bottom:1px solid rgba(0,0,0,0.08); 
-  padding:16px 18px; 
-  min-height:64px;
+/* Layout principal estilo Mission Center */
+window { 
+  background: var(--bg); 
+  color: var(--text); 
+  transition: background .25s ease, color .25s ease; 
+}
+
+headerbar { 
+  background: var(--bg-alt); 
+  border-bottom: 1px solid var(--border); 
+}
+
+headerbar button.flat:hover { 
+  background: rgba(0,120,212,0.1); 
+}
+
+/* Painel lateral estilo Mission Center - sem gradientes */
+.sidebar { 
+  background: var(--bg-sidebar); 
+  border-right: 1px solid var(--border); 
+  min-width: 300px;
+}
+
+.sidebar-list { 
+  background: transparent; 
+  border: none;
+}
+
+.sidebar-item { 
+  padding: 12px 16px; 
+  min-height: 48px;
+  border-bottom: 1px solid rgba(0,0,0,0.05);
   transition: background 150ms ease;
+  background: transparent; /* Sem gradiente */
 }
-.root-light .boxed-list > row { border-bottom:1px solid rgba(0,0,0,0.04); }
-.boxed-list > row:last-child { border-bottom:none; }
-.boxed-list > row:hover { background: rgba(88,139,255,0.06); }
-.boxed-list > row:active { background: rgba(88,139,255,0.12); }
 
-/* Separadores de banda com estilo GNOME */
-.band-separator-row { 
-  background: transparent;
-  border-bottom: none;
-  padding: 0;
+.root-dark .sidebar-item { 
+  border-bottom: 1px solid rgba(255,255,255,0.08); 
 }
-.band-separator { 
-  font-size:12px; 
-  letter-spacing:0.5px; 
-  font-weight:700; 
-  text-transform:uppercase; 
+
+.sidebar-item:hover { 
+  background: rgba(0,120,212,0.08); 
+}
+
+.sidebar-item:active { 
+  background: rgba(0,120,212,0.12); 
+}
+
+.sidebar-item.connected { 
+  background: rgba(0,120,212,0.1);
+  border-left: 3px solid var(--accent);
+}
+
+.sidebar-item.connected:hover { 
+  background: rgba(0,120,212,0.15); 
+}
+
+/* Ícones do painel lateral */
+.sidebar-icon {
+  margin-right: 12px;
+}
+
+.connected-icon {
   color: var(--accent);
+  margin-left: 6px;
 }
 
-/* Ícones de sinal */
-.network-signal-icon {
-  margin-right: 4px;
+.signal-text {
+  font-size: 11px;
+  font-weight: 600;
+  min-width: 32px;
+  text-align: center;
 }
+
+/* Área principal de conteúdo */
+.main-content { 
+  background: var(--bg); 
+}
+
+/* Ícones de força do sinal */
 .wifi-strong { color: var(--success); }
 .wifi-medium { color: var(--warn); }
 .wifi-weak { color: var(--error); }
 
-/* Pills redesenhadas no estilo GNOME Settings */
-.pill { 
-  background: var(--accent); 
-  color: white; 
-  border-radius:16px; 
-  padding:4px 10px; 
-  font-size:11px; 
-  font-weight:600;
-  min-height: 24px;
-}
-.pill.secure { background: var(--success); }
-.pill.open { background: var(--warn); }
-.pill.channel { background: rgba(88,139,255,0.15); color: var(--accent); border: 1px solid rgba(88,139,255,0.3); }
-.root-light .pill.channel { background: rgba(28,113,216,0.1); color: var(--accent); border: 1px solid rgba(28,113,216,0.2); }
-
-/* Percentual de sinal */
-.signal-percentage {
-  font-size: 13px;
-  font-weight: 600;
-  min-width: 40px;
-  text-align: center;
+/* Botões e controles */
+button.flat:hover { 
+  background: rgba(0,120,212,0.08); 
 }
 
-/* Layout dos gráficos - inspirado no Mission Center */
-.charts-panel {
-  background: var(--bg);
-  border-left: 1px solid var(--border);
-}
-
-.charts-controls {
-  background: var(--bg-alt);
-  border-bottom: 1px solid var(--border);
+/* Itens de menu */
+.menu-item {
+  min-width: 120px;
+  text-align: left;
+  justify-content: flex-start;
   padding: 8px 12px;
 }
 
-/* Chart Widget - design moderno como Mission Center */
-.chart-widget {
-  background: linear-gradient(135deg, #171719 0%, #1a1a1c 100%);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+/* Cabeçalho da área principal */
+.heading {
+  font-size: 18px;
+  font-weight: 700;
+}
+
+/* Configurações de tema limpo */
+.linked button {
+  border-radius: 0;
+}
+
+.linked button:first-child {
+  border-top-left-radius: 6px;
+  border-bottom-left-radius: 6px;
+}
+
+.linked button:last-child {
+  border-top-right-radius: 6px;
+  border-bottom-right-radius: 6px;
+}
+
+/* Popover com espaçamento adequado */
+popover {
+  padding: 6px;
   border-radius: 12px;
-  margin: 6px;
-  overflow: hidden;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  border: 1px solid var(--border);
+  background: var(--bg-alt);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
 
-.chart-area {
-  background: transparent;
-  min-height: 320px;
+.root-dark popover {
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
 }
-
-/* Responsividade para gráficos */
-@media (max-width: 1200px) {
-  .charts-main-box {
-    orientation: vertical;
-  }
-  
-  .chart-widget {
-    min-height: 280px;
-  }
-}
-
-@media (max-width: 768px) {
-  .chart-widget {
-    min-height: 240px;
-    margin: 4px;
-  }
-  
-  .charts-panel {
-    border-left: none;
-    border-top: 1px solid var(--border);
-  }
-}
-
-/* ViewSwitcher moderno */
-viewswitcher {
-  background: rgba(255, 255, 255, 0.04);
-  border-radius: 8px;
-  padding: 2px;
-}
-
-viewswitcher button {
-  border-radius: 6px;
-  transition: all 150ms ease;
-}
-
-viewswitcher button:checked {
-  background: var(--accent);
-  color: white;
-  box-shadow: 0 2px 8px rgba(88, 139, 255, 0.3);
-}
-
-/* Evitar sobreposição de HeaderBars */
-window > * > headerbar + headerbar {
-  display: none;
-}
-
-/* Outros elementos */
-statuspage { background: transparent; }
-toast { background: var(--bg-alt); border:1px solid var(--border); border-radius:12px; padding:12px 16px; }
-scrollbar slider { background: rgba(255,255,255,0.25); border-radius:8px; }
-.root-light scrollbar slider { background: rgba(0,0,0,0.25); }
-scrollbar slider:hover { background: rgba(255,255,255,0.35); }
-.root-light scrollbar slider:hover { background: rgba(0,0,0,0.35); }
-scrollbar slider:active { background: var(--accent); }
-
-/* Animações e transições suaves */
-.chart-widget, .boxed-list, viewswitcher, .pill {
-  transition: all 200ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
-}
-
-/* End of file */

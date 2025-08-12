@@ -27,6 +27,8 @@ install_data([
   'src/channelAnalyzer.js',
   'src/advancedChannelAnalyzer.js',
   'src/preferencesWindow.js',
+  'src/themeSelector.js',
+  'src/style.css',
   'src/advancedCharts.css',
   'src/modern.css',
 ], install_dir: datadir / 'wifi-analyzer')

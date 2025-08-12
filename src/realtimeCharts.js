@@ -263,15 +263,12 @@ var RealtimeCharts = GObject.registerClass(
       this._lastNetworksSize = networks.length;
       this._updateNetworksList(networks);
       
-      // Auto-selecionar rede com maior sinal (provável rede conectada) na primeira vez
+      // Auto-selecionar todas as redes na primeira atualização
       if (this._selectedNetworks.size === 0 && networks.length > 0) {
-        const strongestNetwork = networks.reduce((prev, current) => 
-          (prev.signal > current.signal) ? prev : current
-        );
-        if (strongestNetwork && strongestNetwork.signal > 70) { // Apenas se sinal for forte
-          this._selectedNetworks.set(strongestNetwork.ssid, []);
-          this._updateNetworksList(networks); // Atualizar UI para mostrar seleção
-        }
+        networks.forEach(network => {
+          this._selectedNetworks.set(network.ssid, []);
+        });
+        this._updateNetworksList(networks); // Atualizar UI para mostrar seleção
       }
       
       const now = Date.now();
@@ -351,6 +348,27 @@ var RealtimeCharts = GObject.registerClass(
     _updateSpectrumChart(sd) { const c = this._charts.get("spectrum"); if (!c) return; c.setData(sd.map(({ssid,data}) => ({ name: ssid, data: data.map(p=>({x:p.frequency,y:p.signal})) }))); }
     _updateChannelChart(sd) { const c = this._charts.get("channel-map"); if (!c) return; c.setData(sd.map(({ssid,data}) => ({ name: ssid, data: data.map(p=>({x:p.channel,y:p.signal})) }))); }
     _updateStrengthChart(sd) { const c = this._charts.get("signal-bars"); if (!c) return; c.setData(sd.map(({ssid,data}) => ({ name: ssid, value: data.length ? data[data.length-1].signal : 0 }))); }
+    
+    // Métodos públicos para controle de seleção
+    selectAllNetworks() {
+      if (!this._lastNetworksList) return;
+      
+      this._lastNetworksList.forEach(network => {
+        if (!this._selectedNetworks.has(network.ssid)) {
+          this._selectedNetworks.set(network.ssid, []);
+        }
+      });
+      
+      this._updateNetworksList(this._lastNetworksList);
+    }
+    
+    deselectAllNetworks() {
+      this._selectedNetworks.clear();
+      if (this._lastNetworksList) {
+        this._updateNetworksList(this._lastNetworksList);
+      }
+    }
+    
     destroy() { this._stopUpdates(); super.destroy(); }
   }
 );

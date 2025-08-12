@@ -1,0 +1,256 @@
+/* Chart Widget Styles */
+.chart-widget {
+    background: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%);
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.1);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+}
+
+.chart-widget:hover {
+    box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+    transition: box-shadow 0.2s ease;
+}
+
+/* Signal bars in network list */
+.signal-bar {
+    background: rgba(128, 128, 128, 0.3);
+    border-radius: 2px;
+    margin: 0 1px;
+}
+
+.signal-bar.active {
+    background: linear-gradient(to top, #2ec27e 0%, #57e389 100%);
+    box-shadow: 0 0 4px rgba(46, 194, 126, 0.3);
+}
+
+/* Toolbar styling */
+.toolbar {
+    padding: 8px 12px;
+    background: rgba(255,255,255,0.03);
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    border-radius: 8px 8px 0 0;
+}
+
+/* Sidebar styling */
+.sidebar {
+    padding: 16px;
+    background: rgba(0,0,0,0.02);
+    border-right: 1px solid rgba(255,255,255,0.08);
+}
+
+.sidebar .heading {
+    font-weight: 600;
+    font-size: 14px;
+    margin-bottom: 8px;
+    color: rgba(255,255,255,0.9);
+}
+
+/* Chart container animations */
+@keyframes chartFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.chart-container {
+    animation: chartFadeIn 0.3s ease-out;
+}
+
+/* Custom chart colors for dark theme */
+.chart-widget.dark {
+    background: linear-gradient(135deg, rgba(20,20,20,0.8) 0%, rgba(30,30,30,0.9) 100%);
+    border: 1px solid rgba(255,255,255,0.15);
+}
+
+/* Configurações responsivas para gráficos */
+.chart-widget {
+    min-height: 200px;
+}
+
+/* ViewSwitcher custom styling */
+viewswitcher button {
+    border-radius: 6px;
+    margin: 0 2px;
+    transition: all 0.2s ease;
+}
+
+viewswitcher button:checked {
+    background: linear-gradient(135deg, #3584e4 0%, #1c71d8 100%);
+    box-shadow: 0 2px 8px rgba(53, 132, 228, 0.3);
+}
+
+/* Chart grid lines */
+.chart-grid {
+    stroke: rgba(255,255,255,0.1);
+    stroke-width: 0.5;
+    stroke-dasharray: 2,2;
+}
+
+/* Chart data lines */
+.chart-line {
+    fill: none;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.chart-line.primary { stroke: #3584e4; }
+.chart-line.secondary { stroke: #e01b24; }
+.chart-line.success { stroke: #2ec27e; }
+.chart-line.warning { stroke: #f5c211; }
+.chart-line.purple { stroke: #9141ac; }
+
+/* Chart points */
+.chart-point {
+    fill: currentColor;
+    stroke: rgba(255,255,255,0.8);
+    stroke-width: 2;
+    r: 3;
+}
+
+.chart-point:hover {
+    r: 5;
+    stroke-width: 3;
+    transition: all 0.2s ease;
+}
+
+/* Chart tooltips */
+.chart-tooltip {
+    background: rgba(0,0,0,0.9);
+    color: white;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    pointer-events: none;
+    z-index: 1000;
+}
+
+/* Network list styling */
+.network-row {
+    transition: background-color 0.2s ease;
+}
+
+.network-row:hover {
+    background: rgba(255,255,255,0.05);
+}
+
+.network-row.selected {
+    background: rgba(53, 132, 228, 0.1);
+    border-left: 3px solid #3584e4;
+}
+
+/* Signal strength visualization */
+.signal-strength-high {
+    color: #2ec27e;
+}
+
+.signal-strength-medium {
+    color: #f5c211;
+}
+
+.signal-strength-low {
+    color: #e01b24;
+}
+
+/* Spectrum bars */
+.spectrum-bar {
+    transition: all 0.3s ease;
+}
+
+.spectrum-bar:hover {
+    transform: scaleY(1.1);
+    filter: brightness(1.2);
+}
+
+.spectrum-bar.band-2_4ghz {
+    fill: linear-gradient(to top, #3584e4, #62a0ea);
+}
+
+.spectrum-bar.band-5ghz {
+    fill: linear-gradient(to top, #e01b24, #f66151);
+}
+
+/* Channel map styling */
+.channel-occupied {
+    fill: rgba(224, 27, 36, 0.6);
+    stroke: #e01b24;
+    stroke-width: 1;
+}
+
+.channel-free {
+    fill: rgba(46, 194, 126, 0.3);
+    stroke: #2ec27e;
+    stroke-width: 1;
+}
+
+.channel-congested {
+    fill: rgba(245, 194, 17, 0.6);
+    stroke: #f5c211;
+    stroke-width: 1;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 0.6; }
+    50% { opacity: 1; }
+}
+
+/* Control buttons */
+.chart-controls button {
+    margin: 0 4px;
+    padding: 8px 12px;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+}
+
+.chart-controls button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+/* Real-time indicator */
+.realtime-indicator {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    background: #2ec27e;
+    border-radius: 50%;
+    animation: blink 1.5s infinite;
+    margin-right: 8px;
+}
+
+@keyframes blink {
+    0%, 50% { opacity: 1; }
+    51%, 100% { opacity: 0.3; }
+}
+
+/* Loading animation */
+.chart-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 200px;
+    color: rgba(255,255,255,0.6);
+}
+
+.chart-loading::before {
+    content: "";
+    width: 20px;
+    height: 20px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top: 2px solid #3584e4;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-right: 12px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}

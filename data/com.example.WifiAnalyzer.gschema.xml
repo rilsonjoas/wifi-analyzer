@@ -32,11 +32,6 @@
       <summary>Color scheme preference</summary>
       <description>One of: system, light, dark.</description>
     </key>
-    <key name="icon-variant" type="s">
-      <default>'default'</default>
-      <summary>Icon variant</summary>
-      <description>One of: default, alt1, alt2.</description>
-    </key>
     <!-- Opções de desenvolvimento / debug -->
     <key name="enable-dev-mode" type="b">
       <default>false</default>
