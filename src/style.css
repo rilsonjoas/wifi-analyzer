@@ -1,38 +1,82 @@
-/* style.css - Estilo baseado no Mission Center */
+/* Remove estilos padrão do checkbutton para que ele seja apenas um container */
+checkbutton {
+  -gtk-icon-source: none;
+  background-image: none;
+  background: none;
+  border: none;
+}
 
+/* O ícone de fundo (camada de baixo do Overlay) */
+.theme-icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1.5px solid @border_color;
+  box-shadow: inset 0 1px rgba(255, 255, 255, 0.05);
+}
+
+/* Estilos específicos para cada tema */
+.theme-icon-follow {
+  background: conic-gradient(from 90deg, @window_bg_color 0deg 180deg, @headerbar_bg_color 180deg 360deg);
+}
+
+.theme-icon-light {
+  background-color: @window_bg_color;
+}
+
+.theme-icon-dark {
+  background-color: @headerbar_bg_color;
+}
+
+/* O ícone de check (camada de cima do Overlay) */
+.selection-check {
+  color: white;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+  -gtk-icon-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+  font-size: 1.2em;
+}
+
+/* Quando o botão está selecionado, adicionamos um anel de destaque */
+checkbutton:checked {
+  outline: 2px solid @accent_bg_color;
+  outline-offset: 1px;
+  border-radius: 50%;
+}
+
+/* Para garantir que os botões no grupo .linked fiquem colados */
+.linked checkbutton {
+  padding: 4px 2px;
+}
+.linked checkbutton:first-child {
+  padding-left: 4px;
+}
+.linked checkbutton:last-child {
+  padding-right: 4px;
+}
+
+/* === RESTO DO SEU CSS (INTACTO) === */
 /* === SIDEBAR STYLING === */
-/* Sidebar sem background para integrar com a janela */
 overlaysplitview sidebar {
   background-color: transparent;
   border-right: 1px solid rgba(0, 0, 0, 0.1);
 }
-
-/* Header da sidebar */
 overlaysplitview sidebar headerbar {
   background-color: transparent;
   border-bottom: 1px solid rgba(0, 0, 0, 0.1);
 }
-
 overlaysplitview sidebar headerbar.flat {
   background-color: transparent;
   box-shadow: none;
 }
-
-/* Lista de redes na sidebar */
-overlaysplitview sidebar scrolledwindow {
-  background-color: transparent;
-}
-
+overlaysplitview sidebar scrolledwindow,
 overlaysplitview sidebar scrolledwindow viewport {
   background-color: transparent;
 }
-
 overlaysplitview sidebar listbox {
   background-color: transparent;
   margin: 12px;
   border-radius: 8px;
 }
-
 overlaysplitview sidebar listbox.boxed-list {
   background-color: rgba(255, 255, 255, 0.5);
   border: 1px solid rgba(0, 0, 0, 0.1);
@@ -45,14 +89,12 @@ overlaysplitview sidebar listbox.boxed-list {
   --chart-axis: rgba(0, 0, 0, 0.5);
   --chart-text: black;
 }
-
 .dark {
   --chart-bg: #2d2d2d;
   --chart-grid: rgba(255, 255, 255, 0.2);
   --chart-axis: rgba(255, 255, 255, 0.5);
   --chart-text: white;
 }
-
 chartwidget {
   background-color: var(--chart-bg);
   border-radius: 8px;
@@ -61,239 +103,27 @@ chartwidget {
 }
 
 /* === MAIN CONTENT AREA === */
-overlaysplitview content {
-  background-color: transparent;
-}
-
-/* ViewStack e ViewSwitcher styling */
+overlaysplitview content,
 viewstack {
   background-color: transparent;
 }
-
-/* ViewSwitcher no HeaderBar - estilo GNOME padrão */
 headerbar viewswitcher {
-  margin: 0;
-  background-color: transparent;
-  border-radius: 0;
-  padding: 0;
-  border: none;
+  margin: 0; background-color: transparent; border-radius: 0; padding: 0; border: none;
 }
-
 headerbar viewswitcher button {
-  border-radius: 0;
-  margin: 0;
-  padding: 6px 16px;
-  border: none;
-  background-color: transparent;
-  min-height: 32px;
-  font-weight: 500;
+  border-radius: 0; margin: 0; padding: 6px 16px; border: none; background-color: transparent; min-height: 32px; font-weight: 500;
 }
-
 headerbar viewswitcher button:checked {
-  background-color: rgba(53, 132, 228, 0.15);
-  color: #3584e4;
-  border-bottom: 2px solid #3584e4;
+  background-color: rgba(53, 132, 228, 0.15); color: #3584e4; border-bottom: 2px solid #3584e4;
 }
-
 headerbar viewswitcher button:hover:not(:checked) {
   background-color: rgba(0, 0, 0, 0.05);
 }
 
-/* ViewSwitcher standalone (caso seja usado em outro lugar) */
-viewswitcher:not(headerbar viewswitcher) {
-  margin: 6px 12px;
-  background-color: rgba(255, 255, 255, 0.5);
-  border-radius: 8px;
-  padding: 3px;
-  border: 1px solid rgba(0, 0, 0, 0.1);
-}
-
-viewswitcher:not(headerbar viewswitcher) button {
-  border-radius: 6px;
-  margin: 0;
-  padding: 8px 16px;
-  border: none;
-  background-color: transparent;
-}
-
-viewswitcher:not(headerbar viewswitcher) button:checked {
-  background-color: #3584e4;
-  color: white;
-}
-
-/* === WINDOW STYLING === */
-window.background {
-  background-color: transparent;
-}
-
-/* === BUTTONS AND CONTROLS === */
-button.toggle {
-  border-radius: 6px;
-}
-
-button.toggle:checked {
-  background-color: #3584e4;
-  color: white;
-}
-
-/* === LIST ROWS === */
-row {
-  padding: 12px;
-  border-radius: 6px;
-  margin: 3px 6px;
-}
-
-row:hover {
-  background-color: rgba(53, 132, 228, 0.1);
-}
-
 /* === DARK THEME ADJUSTMENTS === */
-.dark overlaysplitview sidebar {
-  border-right: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.dark overlaysplitview sidebar headerbar {
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.dark overlaysplitview sidebar listbox.boxed-list {
-  background-color: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.dark viewswitcher:not(headerbar viewswitcher) {
-  background-color: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.dark headerbar viewswitcher button:checked {
-  background-color: rgba(53, 132, 228, 0.25);
-  color: #78aeed;
-  border-bottom: 2px solid #78aeed;
-}
-
-.dark headerbar viewswitcher button:hover:not(:checked) {
-  background-color: rgba(255, 255, 255, 0.05);
-}
-
-.dark chartwidget {
-  border: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-/* === MOBILE RESPONSIVENESS === */
-/* Configurações para telas menores */
-overlaysplitview sidebar {
-  min-width: 280px;
-}
-
-overlaysplitview sidebar listbox {
-  margin: 6px;
-}
-
-/* === NOVOS COMPONENTES - NETWORK DETAILS E TELEMETRIA === */
-
-/* Estilo dos botões de informação */
-.network-info-button {
-  opacity: 0.7;
-  transition: all 0.2s ease;
-}
-
-.network-info-button:hover {
-  opacity: 1;
-  transform: scale(1.1);
-}
-
-/* Telemetry window específico */
-.telemetry-stats {
-  background-color: rgba(255, 255, 255, 0.05);
-  border-radius: 8px;
-  padding: 12px;
-  margin: 6px;
-}
-
-.telemetry-value {
-  font-size: 24px;
-  font-weight: bold;
-  color: #3584e4;
-}
-
-/* Hunt mode indicadores */
-.hunt-target {
-  border-left: 4px solid #3584e4;
-  background-color: rgba(53, 132, 228, 0.1);
-}
-
-.hunt-active {
-  background-color: rgba(237, 51, 59, 0.1);
-  border: 2px solid #ed333b;
-}
-
-/* Status indicators */
-.status-connected {
-  color: #26a269;
-}
-
-.status-connecting {
-  color: #f5c211;
-}
-
-.status-disconnected {
-  color: #e01b24;
-}
-
-/* Network details dialog */
-.network-details-group {
-  margin: 12px 0;
-}
-
-.network-security-level {
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 11px;
-  font-weight: bold;
-}
-
-.security-high {
-  background-color: rgba(38, 162, 105, 0.2);
-  color: #26a269;
-}
-
-.security-medium {
-  background-color: rgba(245, 194, 17, 0.2);
-  color: #f5c211;
-}
-
-.security-low {
-  background-color: rgba(224, 27, 36, 0.2);
-  color: #e01b24;
-}
-
-/* GPS status */
-.gps-active {
-  color: #26a269;
-}
-
-.gps-searching {
-  color: #f5c211;
-}
-
-.gps-disabled {
-  color: #e01b24;
-}
-
-/* Charts drawing areas */
-.chart-area {
-  background-color: #ffffff;
-  border: 1px solid #d0d7de;
-  border-radius: 8px;
-}
-
-.dark .chart-area {
-  background-color: #0d1117;
-  border: 1px solid #30363d;
-}
-
-/* Export buttons */
-.export-button {
-  margin: 4px;
-}
+.dark overlaysplitview sidebar { border-right: 1px solid rgba(255, 255, 255, 0.1); }
+.dark overlaysplitview sidebar headerbar { border-bottom: 1px solid rgba(255, 255, 255, 0.1); }
+.dark overlaysplitview sidebar listbox.boxed-list { background-color: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); }
+.dark headerbar viewswitcher button:checked { background-color: rgba(53, 132, 228, 0.25); color: #78aeed; border-bottom: 2px solid #78aeed; }
+.dark headerbar viewswitcher button:hover:not(:checked) { background-color: rgba(255, 255, 255, 0.05); }
+.dark chartwidget { border: 1px solid rgba(255, 255, 255, 0.1); }

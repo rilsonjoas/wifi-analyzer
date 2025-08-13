@@ -12,6 +12,9 @@ var WifiAnalyzerApplication = GObject.registerClass(
         flags: Gio.ApplicationFlags.DEFAULT_FLAGS,
       });
 
+      // Inicializar settings
+      this._initSettings();
+
       // Ações globais do aplicativo
       const quitAction = new Gio.SimpleAction({ name: "quit" });
       quitAction.connect("activate", () => this.quit());
@@ -28,6 +31,26 @@ var WifiAnalyzerApplication = GObject.registerClass(
 
       // Carregar CSS uma vez na inicialização
       this._loadCSS();
+    }
+
+    _initSettings() {
+      try {
+        // Tentar usar o schema compilado
+        this.settings = new Gio.Settings({
+          schema_id: "com.example.WifiAnalyzer"
+        });
+      } catch (e) {
+        print(`Aviso: Não foi possível carregar settings: ${e.message}`);
+        // Criar um settings mock para desenvolvimento
+        this.settings = {
+          get_string: (key) => "default",
+          set_string: (key, value) => {},
+          get_int: (key) => 5,
+          set_int: (key, value) => {},
+          get_boolean: (key) => false,
+          set_boolean: (key, value) => {}
+        };
+      }
     }
 
     vfunc_activate() {
@@ -110,8 +133,20 @@ var WifiAnalyzerApplication = GObject.registerClass(
     _showPreferences() {
       if (!this.active_window) return;
       
-      const prefs = new PreferencesWindow(this.active_window);
-      prefs.present();
+      try {
+        const prefs = new PreferencesWindow(this.active_window);
+        prefs.present();
+      } catch (error) {
+        print(`Erro ao abrir preferências: ${error.message}`);
+        // Mostrar um dialog simples como fallback
+        const dialog = new Adw.MessageDialog({
+          transient_for: this.active_window,
+          heading: "Preferências",
+          body: "As configurações não estão disponíveis no momento.",
+        });
+        dialog.add_response("ok", "OK");
+        dialog.present();
+      }
     }
   }
 );

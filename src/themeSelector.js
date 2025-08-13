@@ -1,226 +1,159 @@
-// themeSelector.js - Seletor de tema no estilo GNOME Text Editor
+// theme-loader.js
+// Utilitário para carregar e aplicar estilos de tema
 
-const { GObject, Gtk, Gio, Adw } = imports.gi;
+const { Gtk, Gio, GLib } = imports.gi;
 
-var ThemeSelector = GObject.registerClass(
-  {
-    GTypeName: "ThemeSelector",
-    Properties: {
-      'theme': GObject.ParamSpec.string(
-        'theme',
-        'Theme',
-        'Current theme selection',
-        GObject.ParamFlags.READWRITE,
-        'default'
-      ),
-    },
-    Signals: {
-      'theme-changed': {
-        param_types: [GObject.TYPE_STRING]
+var ThemeLoader = class {
+  constructor() {
+    this._cssProvider = new Gtk.CssProvider();
+    this._loaded = false;
+  }
+
+  loadThemeCSS() {
+    if (this._loaded) return;
+
+    // CSS inline com os estilos do seletor de tema
+    const css = `
+      /* Estilo base para checkbuttons do tema */
+      checkbutton.selection-mode {
+        background: none;
+        border: none;
+        min-width: 32px;
+        min-height: 32px;
+        border-radius: 50%;
+        outline-offset: 2px;
+        padding: 0;
+        margin: 0;
       }
-    }
-  },
-  class ThemeSelector extends Gtk.Widget {
-    _init(params = {}) {
-      super._init(params);
-      
-      this._theme = 'default';
-      
-      this._buildUI();
-      this._setupStyleManager();
-      this._loadSettings();
-    }
 
-    _buildUI() {
-      // Container principal
-      this._box = new Gtk.Box({
-        orientation: Gtk.Orientation.HORIZONTAL,
-        spacing: 12,
-        hexpand: true,
-        halign: Gtk.Align.CENTER,
-        margin_top: 9,
-        margin_bottom: 9,
-        margin_start: 9,
-        margin_end: 9,
-      });
-
-      // Botão "Seguir Sistema" (metade clara/metade escura)
-      this._followButton = new Gtk.CheckButton({
-        css_classes: ['theme-selector', 'follow'],
-        hexpand: true,
-        halign: Gtk.Align.CENTER,
-        focus_on_click: false,
-        tooltip_text: 'Seguir Sistema',
-      });
-
-      // Botão "Modo Claro"
-      this._lightButton = new Gtk.CheckButton({
-        css_classes: ['theme-selector', 'light'],
-        hexpand: true,
-        halign: Gtk.Align.CENTER,
-        focus_on_click: false,
-        tooltip_text: 'Modo Claro',
-      });
-
-      // Botão "Modo Escuro"  
-      this._darkButton = new Gtk.CheckButton({
-        css_classes: ['theme-selector', 'dark'],
-        hexpand: true,
-        halign: Gtk.Align.CENTER,
-        group: this._lightButton,
-        focus_on_click: false,
-        tooltip_text: 'Modo Escuro',
-      });
-
-      // Configurar grupo de botões
-      this._followButton.set_group(this._lightButton);
-
-      // Conectar sinais
-      this._followButton.connect('toggled', () => {
-        if (this._followButton.get_active()) {
-          this._setTheme('default');
-        }
-      });
-
-      this._lightButton.connect('toggled', () => {
-        if (this._lightButton.get_active()) {
-          this._setTheme('light');
-        }
-      });
-
-      this._darkButton.connect('toggled', () => {
-        if (this._darkButton.get_active()) {
-          this._setTheme('dark');
-        }
-      });
-
-      // Adicionar botões ao container
-      this._box.append(this._followButton);
-      this._box.append(this._lightButton);
-      this._box.append(this._darkButton);
-
-      // Definir o box como child do widget
-      this._box.set_parent(this);
-
-      // Aplicar CSS name
-      this.set_css_name('themeselector');
-    }
-
-    _setupStyleManager() {
-      const styleManager = Adw.StyleManager.get_default();
-      
-      // Verificar se o sistema suporta esquemas de cor
-      const systemSupportsColorSchemes = styleManager.get_system_supports_color_schemes();
-      this._followButton.set_visible(systemSupportsColorSchemes);
-      
-      // Conectar mudanças do sistema
-      styleManager.connect('notify::system-supports-color-schemes', () => {
-        const supports = styleManager.get_system_supports_color_schemes();
-        this._followButton.set_visible(supports);
-      });
-
-      styleManager.connect('notify::dark', () => {
-        this._updateDarkClass();
-      });
-
-      this._updateDarkClass();
-    }
-
-    _loadSettings() {
-      this._settings = new Gio.Settings({
-        schema_id: "com.example.WifiAnalyzer",
-      });
-
-      // Carregar tema atual das configurações
-      const currentScheme = this._settings.get_string("color-scheme");
-      this._updateButtonsFromScheme(currentScheme);
-
-      // Escutar mudanças nas configurações
-      this._settings.connect("changed::color-scheme", () => {
-        const scheme = this._settings.get_string("color-scheme");
-        this._updateButtonsFromScheme(scheme);
-      });
-    }
-
-    _updateButtonsFromScheme(scheme) {
-      // Não disparar eventos durante a atualização programática
-      this._settingFromCode = true;
-      
-      switch (scheme) {
-        case 'force-light':
-          this._lightButton.set_active(true);
-          this._theme = 'light';
-          break;
-        case 'force-dark':
-          this._darkButton.set_active(true);
-          this._theme = 'dark';
-          break;
-        case 'default':
-        default:
-          this._followButton.set_active(true);
-          this._theme = 'default';
-          break;
+      checkbutton.selection-mode check {
+        background: none;
+        border: none;
+        min-width: 32px;
+        min-height: 32px;
+        border-radius: 50%;
+        margin: 0;
+        padding: 0;
+        box-shadow: inset 0 1px rgba(255, 255, 255, 0.1);
+        transition: all 200ms ease;
       }
-      
-      this._settingFromCode = false;
-    }
 
-    _updateDarkClass() {
-      const styleManager = Adw.StyleManager.get_default();
-      const isDark = styleManager.get_dark();
-      
-      if (isDark) {
-        this.add_css_class('dark');
-      } else {
-        this.remove_css_class('dark');
+      /* Remover ícone de check */
+      checkbutton.selection-mode check:checked {
+        -gtk-icon-source: none;
+        background-image: none;
+        color: transparent;
       }
-    }
 
-    _setTheme(theme) {
-      if (this._theme === theme || this._settingFromCode) return;
-      
-      this._theme = theme;
-      
-      const styleManager = Adw.StyleManager.get_default();
-      let schemeValue;
-      
-      switch (theme) {
-        case 'light':
-          styleManager.set_color_scheme(Adw.ColorScheme.FORCE_LIGHT);
-          schemeValue = 'force-light';
-          break;
-        case 'dark':
-          styleManager.set_color_scheme(Adw.ColorScheme.FORCE_DARK);
-          schemeValue = 'force-dark';
-          break;
-        case 'default':
-        default:
-          styleManager.set_color_scheme(Adw.ColorScheme.DEFAULT);
-          schemeValue = 'default';
-          break;
+      /* Botão "Seguir Sistema" */
+      checkbutton.selection-mode.theme-follow check {
+        background: linear-gradient(to right, 
+          @window_bg_color 0%, 
+          @window_bg_color 50%, 
+          @headerbar_bg_color 50%, 
+          @headerbar_bg_color 100%);
+        border: 2px solid @border_color;
       }
-      
-      // Salvar nas configurações
-      this._settings.set_string("color-scheme", schemeValue);
-      
-      this.emit('theme-changed', theme);
-      this.notify('theme');
-    }
 
-    get_theme() {
-      return this._theme;
-    }
-
-    set_theme(theme) {
-      this._setTheme(theme);
-    }
-
-    vfunc_dispose() {
-      if (this._box) {
-        this._box.unparent();
-        this._box = null;
+      /* Botão "Modo Claro" */
+      checkbutton.selection-mode.theme-light check {
+        background: @window_bg_color;
+        border: 2px solid @border_color;
       }
-      super.vfunc_dispose();
+
+      /* Botão "Modo Escuro" */
+      checkbutton.selection-mode.theme-dark check {
+        background: @headerbar_bg_color;
+        border: 2px solid @border_color;
+      }
+
+      /* Estado hover */
+      checkbutton.selection-mode:hover check {
+        transform: scale(1.05);
+        outline: 2px solid alpha(@accent_color, 0.3);
+      }
+
+      /* Estado selecionado */
+      checkbutton.selection-mode:checked check {
+        border: 3px solid @accent_color;
+        outline: 2px solid alpha(@accent_color, 0.15);
+        box-shadow: 0 0 0 1px alpha(@accent_color, 0.1);
+      }
+
+      /* Estado focus */
+      checkbutton.selection-mode:focus check {
+        outline: 2px solid @accent_color;
+        outline-offset: 2px;
+      }
+
+      /* Estado ativo (pressed) */
+      checkbutton.selection-mode:active check {
+        transform: scale(0.95);
+      }
+
+      /* Variações para modo escuro */
+      window.dark checkbutton.selection-mode.theme-follow check {
+        background: linear-gradient(to right,
+          @card_bg_color 0%,
+          @card_bg_color 50%,
+          @window_bg_color 50%,
+          @window_bg_color 100%);
+      }
+
+      /* Container do seletor */
+      .theme-selector-box {
+        padding: 6px;
+      }
+
+      .theme-label {
+        font-weight: 600;
+        font-size: 0.9em;
+        opacity: 0.8;
+      }
+    `;
+
+    try {
+      this._cssProvider.load_from_data(css, -1);
+      this._loaded = true;
+      print("DEBUG: CSS do tema carregado com sucesso");
+    } catch (error) {
+      print(`ERRO: Falha ao carregar CSS - ${error.message}`);
     }
   }
-);
+
+  applyToDisplay(display) {
+    if (!this._loaded) {
+      this.loadThemeCSS();
+    }
+
+    Gtk.StyleContext.add_provider_for_display(
+      display,
+      this._cssProvider,
+      Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+    );
+    print("DEBUG: CSS aplicado ao display");
+  }
+
+  // Método para carregar CSS de arquivo (alternativo)
+  loadFromFile(cssFilePath) {
+    try {
+      const file = Gio.File.new_for_path(cssFilePath);
+      if (file.query_exists(null)) {
+        this._cssProvider.load_from_file(file);
+        this._loaded = true;
+        print(`DEBUG: CSS carregado do arquivo: ${cssFilePath}`);
+        return true;
+      } else {
+        print(`ERRO: Arquivo CSS não encontrado: ${cssFilePath}`);
+        return false;
+      }
+    } catch (error) {
+      print(`ERRO: Falha ao carregar CSS do arquivo - ${error.message}`);
+      return false;
+    }
+  }
+
+  get cssProvider() {
+    return this._cssProvider;
+  }
+};
