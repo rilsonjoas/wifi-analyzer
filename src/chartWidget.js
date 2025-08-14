@@ -283,7 +283,7 @@ var ChartWidget = GObject.registerClass(
     }
 
     _drawSpectrumChart(cr, width, height, themeColors) {
-      // Gráfico de espectro: frequência vs sinal
+      // Gráfico de espectro estilo WiFi Analyzer com formato de lombada/trapézio
       const allPoints = this._data.flatMap((s) => s.data || []);
       if (allPoints.length === 0) {
         // Desenhar mensagem de "sem dados"
@@ -298,40 +298,266 @@ var ChartWidget = GObject.registerClass(
         return;
       }
 
-      // Encontrar range de frequências
-      const minX = Math.min(...allPoints.map((p) => p.x));
-      const maxX = Math.max(...allPoints.map((p) => p.x));
-      const minY = 0, maxY = 100;
+      // Configurações do gráfico
+      const padding = { left: 60, right: 40, top: 40, bottom: 60 };
+      const plotWidth = width - padding.left - padding.right;
+      const plotHeight = height - padding.top - padding.bottom;
 
-      const ctx = this._commonAxes(
-        cr,
-        width,
-        height,
-        { minX, maxX, minY, maxY, yLabel: "Sinal %", xLabel: "Frequência (MHz)" },
-        themeColors
-      );
+      // Range de canais (2.4GHz: 1-14)
+      const minChannel = 1;
+      const maxChannel = 14;
+      const minSignal = -100; // dBm
+      const maxSignal = -20;   // dBm
 
-      this._data.forEach((series, idx) => {
-        if (!series.data || series.data.length < 1) return;
+      // Desenhar fundo do gráfico
+      const { gridColor, axisColor, textColor, backgroundColor } = themeColors;
+      const bgColor = backgroundColor || { red: 0.1, green: 0.1, blue: 0.1 }; // Fallback para bgColor
+      
+      // Grid horizontal (níveis de sinal)
+      cr.setSourceRGBA(gridColor.red, gridColor.green, gridColor.blue, 0.3);
+      cr.setLineWidth(0.5);
+      
+      const signalStep = 10; // Linhas a cada 10 dBm
+      for (let signal = minSignal; signal <= maxSignal; signal += signalStep) {
+        const y = padding.top + ((maxSignal - signal) / (maxSignal - minSignal)) * plotHeight;
+        cr.moveTo(padding.left, y);
+        cr.lineTo(padding.left + plotWidth, y);
+        cr.stroke();
+      }
 
-        const color = this._palette[idx % this._palette.length];
-        cr.setSourceRGBA(...color, 0.8);
-        cr.setLineWidth(2);
+      // Grid vertical (canais)
+      for (let channel = minChannel; channel <= maxChannel; channel++) {
+        const x = padding.left + ((channel - minChannel) / (maxChannel - minChannel)) * plotWidth;
+        cr.moveTo(x, padding.top);
+        cr.lineTo(x, padding.top + plotHeight);
+        cr.stroke();
+      }
 
-        series.data.forEach((point, pointIdx) => {
-          const x = ctx.padL + ((point.x - minX) / (maxX - minX || 1)) * ctx.plotW;
-          const y = ctx.padT + ((maxY - point.y) / (maxY - minY || 1)) * ctx.plotH;
+      // Eixos principais
+      cr.setSourceRGBA(axisColor.red, axisColor.green, axisColor.blue, 1.0);
+      cr.setLineWidth(1.5);
+      
+      // Eixo Y (esquerda)
+      cr.moveTo(padding.left, padding.top);
+      cr.lineTo(padding.left, padding.top + plotHeight);
+      cr.stroke();
+      
+      // Eixo X (inferior)
+      cr.moveTo(padding.left, padding.top + plotHeight);
+      cr.lineTo(padding.left + plotWidth, padding.top + plotHeight);
+      cr.stroke();
 
-          if (pointIdx === 0) {
-            cr.moveTo(x, y);
-          } else {
-            cr.lineTo(x, y);
+      // Labels do eixo Y (níveis de sinal em dBm)
+      cr.setSourceRGBA(textColor.red, textColor.green, textColor.blue, 1.0);
+      cr.selectFontFace("Cantarell, sans-serif", Cairo.FontSlant.NORMAL, Cairo.FontWeight.NORMAL);
+      cr.setFontSize(10);
+      
+      for (let signal = minSignal; signal <= maxSignal; signal += signalStep) {
+        const y = padding.top + ((maxSignal - signal) / (maxSignal - minSignal)) * plotHeight;
+        const text = `${signal}`;
+        const extents = cr.textExtents(text);
+        cr.moveTo(padding.left - extents.width - 10, y + extents.height / 2);
+        cr.showText(text);
+      }
+
+      // Labels do eixo X (canais)
+      for (let channel = minChannel; channel <= maxChannel; channel++) {
+        const x = padding.left + ((channel - minChannel) / (maxChannel - minChannel)) * plotWidth;
+        const text = `${channel}`;
+        const extents = cr.textExtents(text);
+        cr.moveTo(x - extents.width / 2, padding.top + plotHeight + 20);
+        cr.showText(text);
+      }
+
+      // Título dos eixos
+      cr.setFontSize(12);
+      
+      // Label Y (dBm)
+      cr.save();
+      cr.translate(15, height / 2);
+      cr.rotate(-Math.PI / 2);
+      const yLabelExtents = cr.textExtents("dBm");
+      cr.moveTo(-yLabelExtents.width / 2, 0);
+      cr.showText("dBm");
+      cr.restore();
+      
+      // Label X (Canal)
+      const xLabelExtents = cr.textExtents("Canal");
+      cr.moveTo(width / 2 - xLabelExtents.width / 2, height - 15);
+      cr.showText("Canal");
+
+      // Desenhar espectro em formato de lombada/trapézio para cada rede
+      this._data.forEach((series, seriesIdx) => {
+        if (!series.data || series.data.length === 0) return;
+
+        const color = this._palette[seriesIdx % this._palette.length];
+        
+        series.data.forEach((point) => {
+          // Converter frequência para canal (aproximação)
+          let channel = this._frequencyToChannel(point.x);
+          if (channel < minChannel || channel > maxChannel) return;
+
+          // Converter sinal de % para dBm (aproximação)
+          const signalDbm = (point.y / 100) * (maxSignal - minSignal) + minSignal;
+
+          const centerX = padding.left + ((channel - minChannel) / (maxChannel - minChannel)) * plotWidth;
+          const peakY = padding.top + ((maxSignal - signalDbm) / (maxSignal - minSignal)) * plotHeight;
+          const baseY = padding.top + plotHeight;
+
+          // Largura da lombada (simula largura de banda do canal WiFi)
+          const bandwidthWidth = plotWidth / (maxChannel - minChannel) * 0.8; // ~80% da largura do canal
+          const halfWidth = bandwidthWidth / 2;
+
+          // Criar formato de lombada/trapézio usando curvas Bézier
+          cr.newPath();
+          
+          // Começar da base esquerda
+          cr.moveTo(centerX - halfWidth, baseY);
+          
+          // Subir pela lateral esquerda (curva suave)
+          cr.curveTo(
+            centerX - halfWidth * 0.7, baseY,           // ponto de controle 1
+            centerX - halfWidth * 0.3, peakY + (baseY - peakY) * 0.3, // ponto de controle 2
+            centerX - halfWidth * 0.1, peakY            // ponto final (quase no topo)
+          );
+          
+          // Topo da lombada (pequena área plana)
+          cr.lineTo(centerX + halfWidth * 0.1, peakY);
+          
+          // Descer pela lateral direita (curva suave)
+          cr.curveTo(
+            centerX + halfWidth * 0.3, peakY + (baseY - peakY) * 0.3, // ponto de controle 1
+            centerX + halfWidth * 0.7, baseY,           // ponto de controle 2
+            centerX + halfWidth, baseY                  // ponto final (base direita)
+          );
+          
+          // Fechar o caminho pela base
+          cr.closePath();
+
+          // Preencher com gradiente
+          const gradient = new Cairo.LinearGradient(0, peakY, 0, baseY);
+          gradient.addColorStopRGBA(0, ...color, 0.8);
+          gradient.addColorStopRGBA(1, ...color, 0.2);
+          cr.setSource(gradient);
+          cr.fill();
+
+          // Contorno da lombada
+          cr.newPath();
+          cr.moveTo(centerX - halfWidth, baseY);
+          cr.curveTo(
+            centerX - halfWidth * 0.7, baseY,
+            centerX - halfWidth * 0.3, peakY + (baseY - peakY) * 0.3,
+            centerX - halfWidth * 0.1, peakY
+          );
+          cr.lineTo(centerX + halfWidth * 0.1, peakY);
+          cr.curveTo(
+            centerX + halfWidth * 0.3, peakY + (baseY - peakY) * 0.3,
+            centerX + halfWidth * 0.7, baseY,
+            centerX + halfWidth, baseY
+          );
+          
+          cr.setSourceRGBA(...color, 1.0);
+          cr.setLineWidth(2);
+          cr.stroke();
+
+          // Label da rede no centro da lombada (apenas para sinais fortes)
+          const lombadaHeight = baseY - peakY;
+          if (lombadaHeight > plotHeight * 0.25) {
+            cr.setSourceRGBA(...color, 1.0);
+            cr.selectFontFace("Cantarell, sans-serif", Cairo.FontSlant.NORMAL, Cairo.FontWeight.BOLD);
+            cr.setFontSize(9);
+            const textExtents = cr.textExtents(series.name);
+            
+            // Posicionar texto no centro da lombada
+            const textX = centerX - textExtents.width / 2;
+            const textY = peakY + lombadaHeight * 0.3;
+            
+            // Fundo semi-transparente para melhorar legibilidade
+            cr.setSourceRGBA(bgColor.red, bgColor.green, bgColor.blue, 0.8);
+            cr.rectangle(textX - 3, textY - textExtents.height, textExtents.width + 6, textExtents.height + 3);
+            cr.fill();
+            
+            // Texto da rede
+            cr.setSourceRGBA(...color, 1.0);
+            cr.moveTo(textX, textY);
+            cr.showText(series.name);
           }
         });
-        cr.stroke();
       });
 
-      this._drawLegend(cr, width, height, themeColors);
+      // Desenhar legenda
+      this._drawSpectrumLegend(cr, width, height, themeColors);
+    }
+
+    _frequencyToChannel(frequency) {
+      // Conversão aproximada de frequência (MHz) para canal
+      if (frequency >= 2412 && frequency <= 2484) {
+        // 2.4 GHz
+        if (frequency === 2484) return 14;
+        return Math.round((frequency - 2412) / 5) + 1;
+      } else if (frequency >= 5170 && frequency <= 5825) {
+        // 5 GHz (aproximação simples)
+        return Math.round((frequency - 5000) / 20);
+      }
+      return 1; // fallback
+    }
+
+    _drawSpectrumLegend(cr, width, height, themeColors) {
+      if (this._data.length === 0) return;
+
+      const { textColor, backgroundColor } = themeColors;
+      const bgColor = backgroundColor || { red: 0.1, green: 0.1, blue: 0.1 }; // Fallback para bgColor
+      const legendX = width - 200;
+      const legendY = 60;
+      const itemHeight = 20;
+      const legendWidth = 180;
+      const legendHeight = this._data.length * itemHeight + 20;
+
+      // Fundo da legenda
+      cr.setSourceRGBA(bgColor.red, bgColor.green, bgColor.blue, 0.9);
+      cr.rectangle(legendX, legendY, legendWidth, legendHeight);
+      cr.fill();
+
+      // Borda da legenda
+      cr.setSourceRGBA(textColor.red, textColor.green, textColor.blue, 0.3);
+      cr.setLineWidth(1);
+      cr.rectangle(legendX, legendY, legendWidth, legendHeight);
+      cr.stroke();
+
+      // Itens da legenda
+      cr.setSourceRGBA(textColor.red, textColor.green, textColor.blue, 1.0);
+      cr.selectFontFace("Cantarell, sans-serif", Cairo.FontSlant.NORMAL, Cairo.FontWeight.NORMAL);
+      cr.setFontSize(10);
+
+      this._data.forEach((series, idx) => {
+        const color = this._palette[idx % this._palette.length];
+        const y = legendY + 15 + idx * itemHeight;
+
+        // Quadrado colorido
+        cr.setSourceRGBA(...color, 0.8);
+        cr.rectangle(legendX + 10, y - 8, 12, 12);
+        cr.fill();
+
+        // Contorno do quadrado
+        cr.setSourceRGBA(...color, 1.0);
+        cr.setLineWidth(1);
+        cr.rectangle(legendX + 10, y - 8, 12, 12);
+        cr.stroke();
+
+        // Nome da série
+        cr.setSourceRGBA(textColor.red, textColor.green, textColor.blue, 1.0);
+        cr.moveTo(legendX + 30, y);
+        cr.showText(series.name);
+
+        // Indicador de conectado (se aplicável)
+        if (this._isConnectedNetwork && this._isConnectedNetwork(series.name)) {
+          cr.setSourceRGBA(0.0, 0.8, 0.0, 1.0); // Verde
+          cr.setFontSize(8);
+          cr.moveTo(legendX + 30 + cr.textExtents(series.name).width + 5, y);
+          cr.showText("CONECTADO");
+          cr.setFontSize(10);
+        }
+      });
     }
 
     _drawChannelChart(cr, width, height, themeColors) {

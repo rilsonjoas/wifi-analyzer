@@ -33,6 +33,8 @@ install_data([
   'src/dataExporter.js',
   'src/networkDetailsDialog.js',
   'src/telemetryWindow.js',
+  'src/connectionManager.js',
+  'src/networkManagementWindow.js',
   'src/style.css',
   'src/advancedCharts.css',
   'src/modern.css',

@@ -580,6 +580,127 @@ var NetworkManager = GObject.registerClass(
       }
     }
 
+    async getCurrentNetworkInfo() {
+      try {
+        // Obter informações da rede conectada via nmcli
+        const [, stdout] = GLib.spawn_command_line_sync("nmcli -t -f NAME,TYPE,DEVICE connection show --active");
+        const activeConnections = new TextDecoder().decode(stdout).trim().split('\n');
+        
+        let wifiConnection = null;
+        for (const line of activeConnections) {
+          const [name, type, device] = line.split(':');
+          if (type === '802-11-wireless') {
+            wifiConnection = { name, device };
+            break;
+          }
+        }
+
+        if (!wifiConnection) {
+          return null;
+        }
+
+        // Obter detalhes da conexão ativa
+        const [, detailsStdout] = GLib.spawn_command_line_sync(`nmcli -t -f IP4.ADDRESS,IP4.GATEWAY,IP4.DNS connection show "${wifiConnection.name}"`);
+        const details = new TextDecoder().decode(detailsStdout).trim();
+        
+        const networkInfo = {
+          ssid: wifiConnection.name,
+          device: wifiConnection.device,
+          ipAddress: null,
+          gateway: null,
+          dns: [],
+        };
+
+        details.split('\n').forEach(line => {
+          const [key, value] = line.split(':');
+          if (key === 'IP4.ADDRESS' && value) {
+            networkInfo.ipAddress = value.split('/')[0]; // Remove a máscara de rede
+          } else if (key === 'IP4.GATEWAY' && value) {
+            networkInfo.gateway = value;
+          } else if (key === 'IP4.DNS' && value) {
+            networkInfo.dns.push(value);
+          }
+        });
+
+        return networkInfo;
+      } catch (error) {
+        this._log("Erro ao obter informações da rede conectada:", error.message);
+        return null;
+      }
+    }
+
+    async getNetworkDevices(gateway) {
+      try {
+        if (!gateway) return [];
+
+        // Fazer ping no gateway para verificar conectividade
+        const [, , exitStatus] = GLib.spawn_command_line_sync(`ping -c 1 -W 1 ${gateway}`);
+        if (exitStatus !== 0) {
+          return [];
+        }
+
+        // Escanear a rede local usando nmap se disponível
+        try {
+          const networkRange = gateway.substring(0, gateway.lastIndexOf('.')) + '.0/24';
+          const [, stdout] = GLib.spawn_command_line_sync(`nmap -sn ${networkRange}`);
+          const output = new TextDecoder().decode(stdout);
+          
+          const devices = [];
+          const lines = output.split('\n');
+          
+          for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            if (line.includes('Nmap scan report for')) {
+              const ipMatch = line.match(/(\d+\.\d+\.\d+\.\d+)/);
+              if (ipMatch) {
+                const ip = ipMatch[1];
+                let hostname = null;
+                
+                // Extrair hostname se presente
+                const hostnameMatch = line.match(/for ([^\s(]+)/);
+                if (hostnameMatch && !hostnameMatch[1].match(/\d+\.\d+\.\d+\.\d+/)) {
+                  hostname = hostnameMatch[1];
+                }
+
+                // Determinar tipo de dispositivo baseado no IP
+                let deviceType = 'computer';
+                if (ip === gateway) {
+                  deviceType = 'router';
+                  hostname = hostname || 'Gateway';
+                } else if (ip.endsWith('.1')) {
+                  deviceType = 'router';
+                }
+
+                devices.push({
+                  ip,
+                  hostname: hostname || `Device (${ip})`,
+                  type: deviceType
+                });
+              }
+            }
+          }
+          
+          return devices.sort((a, b) => {
+            // Gateway primeiro, depois ordenar por IP
+            if (a.type === 'router' && b.type !== 'router') return -1;
+            if (b.type === 'router' && a.type !== 'router') return 1;
+            return a.ip.localeCompare(b.ip, undefined, { numeric: true });
+          });
+        } catch (nmapError) {
+          this._log("nmap não disponível, usando método alternativo");
+          // Fallback: apenas retornar o gateway
+          return [{
+            ip: gateway,
+            hostname: 'Gateway',
+            type: 'router'
+          }];
+        }
+      } catch (error) {
+        this._log("Erro ao escanear dispositivos da rede:", error.message);
+        return [];
+      }
+    }
+
     destroy() { this.stopRealTimeMonitoring(); }
   }
 );

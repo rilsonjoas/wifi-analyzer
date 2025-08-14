@@ -15,16 +15,14 @@ var NetworkDetailsDialog = GObject.registerClass(
   },
   class NetworkDetailsDialog extends Adw.Window {
     _init(params = {}) {
-      // Extrair parâmetros customizados antes de chamar super._init
-      const { parent, networkData, networkManager, ...superParams } = params;
+      const { networkData, networkManager } = params;
       
+      // Construtor básico sem parâmetros extras
       super._init({
-        ...superParams,
         title: "Detalhes da Rede",
         default_width: 500,
         default_height: 600,
         modal: true,
-        transient_for: parent,
       });
 
       this._networkData = networkData;
