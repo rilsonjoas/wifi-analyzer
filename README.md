@@ -1,126 +1,131 @@
-# WiFi Analyzer - Analisador WiFi Avançado
+# WiFi Analyzer - Advanced WiFi Scanner
 
-> Estado: **Versão Beta Avançada** – Funcionalidades principais implementadas, incluindo Hunt Mode, GPS, telemetria e compatibilidade completa com Sparrow-wifi. Interface madura e estável.
+> Status: **Alpha 2** – All core features are being implemented. The project is now focused on bug fixes, polishing, and ensuring flawless operation.
 
-## 🚀 Funcionalidades Principais
+## 🚀 Main Features
 
-### 📊 Análise Básica de WiFi
-- **Escaneamento em tempo real** de redes WiFi próximas (2.4/5/6 GHz)
-- **Gráficos dinâmicos** de sinal vs tempo, espectro, mapa de canais e força do sinal
-- **Lista organizada** com informações detalhadas de cada rede
-- **Seleção múltipla** para comparar várias redes simultaneamente
-- **Agrupamento por banda** e ordenação inteligente
+### 📊 Basic WiFi Analysis
+- **Real-time scanning** of nearby WiFi networks (2.4/5/6 GHz)
+- **Dynamic charts**: signal vs time, spectrum, channel map, signal strength
+- **Organized list** with detailed info for each network
+- **Multi-selection** for comparing multiple networks
+- **Band grouping** and smart sorting
 
-### 🎯 Hunt Mode (Rastreamento Avançado)
-- **Modo Hunt** para rastreamento específico de redes-alvo
-- **Telemetria em tempo real** com histórico de sinal
-- **Análise de tendências** (melhorando/piorando/estável)
-- **Interface de telemetria dedicada** com gráficos e estatísticas
-- **Compatibilidade total** com Sparrow-wifi
+### 🎯 Hunt Mode (Advanced Tracking)
+- **Hunt Mode** for targeted network tracking
+- **Live telemetry** with signal history
+- **Trend analysis** (improving/worsening/stable)
+- **Dedicated telemetry interface** with charts and stats
 
-### 📍 Integração GPS
-- **Localização automática** com coordenadas GPS
-- **Mapeamento de redes** por localização
-- **Precisão de posicionamento** para análise geográfica
-- **Simulação GPS** para teste (quando hardware não disponível)
+### 📍 GPS Integration
+- **Automatic location** with GPS coordinates
+- **Network mapping** by location
+- **Precise positioning** for geographic analysis
+- **GPS simulation** for testing (when hardware is unavailable)
 
-### 🔍 Detalhes Avançados de Rede
-- **Dialog de informações completas** para cada rede (botão ℹ️)
-- **Análise de segurança** com níveis e recomendações
-- **Estimativa de distância** baseada em força do sinal
-- **Lookup de fabricante** via OUI (Organizationally Unique Identifier)
-- **Histórico de detecções** e estatísticas de sinal
+### 🔍 Advanced Network Details
+- **Full info dialog** for each network (ℹ️ button)
+- **Security analysis** with levels and recommendations
+- **Distance estimation** based on signal strength
+- **Manufacturer lookup** via OUI
+- **Detection history** and signal statistics
 
-### 📁 Exportação e Importação
-- **Múltiplos formatos**: JSON, CSV, Sparrow-wifi compatible
-- **Exportação seletiva** de redes específicas ou conjuntos completos
-- **Compatibilidade total** com dados do Sparrow-wifi
-- **Importação de dados** existentes para análise
+### 📁 Export & Import
+- **Multiple formats**: JSON, CSV, Sparrow-wifi compatible
+- **Selective export** of specific networks or full sets
+- **Full compatibility** with Sparrow-wifi data
+- **Import existing data** for analysis
 
-## Principais Tecnologias
-- **GJS** (JavaScript para GNOME)
-- **GTK4 + Libadwaita** (UI moderna, ViewStack, HeaderBar, Dialogs, Preferences, Toasts)
-- **D‑Bus (NetworkManager)** para descoberta de dispositivos e Access Points
-- **Fallback nmcli** quando D‑Bus falha / não disponível
-- **Mock interno (Dev Mode)** para testes sem hardware real
-- **Cairo** (desenho de gráficos customizados)
-- **GSettings** (persistência de preferências: intervalo de atualização, tema, ícones, notificações, dev/debug)
-- **Sistema de Notificações** com throttling (cooldowns, silêncio inicial, limite por janela de tempo)
-- **Flatpak** (empacotamento e sandbox)
-- **CSS moderno** com tokens de tema (root-light / root-dark) e componentes estilizados (pills, barras de sinal, separadores de banda)
+## Technologies
+- **GJS** (JavaScript for GNOME)
+- **GTK4 + Libadwaita** (modern UI, ViewStack, HeaderBar, Dialogs, Preferences, Toasts)
+- **D‑Bus (NetworkManager)** for device and Access Point discovery
+- **Fallback nmcli** when D‑Bus is unavailable
+- **Internal mock (Dev Mode)** for testing without real hardware
+- **Cairo** (custom chart drawing)
+- **GSettings** (persistent preferences: refresh interval, theme, icons, notifications, dev/debug)
+- **Notification system** with throttling (cooldowns, initial silence, time window limits)
+- **Flatpak** (packaging and sandboxing)
+- **Modern CSS** with theme tokens (root-light / root-dark) and styled components (pills, signal bars, band separators)
 
-## Funcionalidades Já Implementadas
-- Scan periódico com fallback inteligente (D‑Bus → nmcli → mock)
-- Agrupamento por banda e ordenação por força de sinal
-- Indicadores visuais: ícone de intensidade, barra de progresso, pills (segurança, canal, banda)
-- Gráficos em tempo real (base existentes prontos para expansão)
-- Análise inicial de canais (sugestões para 2.4 GHz e 5 GHz)
-- Preferências persistentes (tema, ícones, modo dev, debug, notificações, intervalo)
-- Tema dinâmico (tokens prontos + aplicação de classes root-light/root-dark)
-- Notificações controladas: novas redes, redes desaparecidas, queda brusca de sinal
+## Implemented Features
+- Periodic scan with smart fallback (D‑Bus → nmcli → mock)
+- Band grouping and signal strength sorting
+- Visual indicators: intensity icon, progress bar, pills (security, channel, band)
+- Real-time charts (base ready for expansion)
+- Initial channel analysis (suggestions for 2.4 GHz and 5 GHz)
+- Persistent preferences (theme, icons, dev mode, debug, notifications, interval)
+- Dynamic theme (ready tokens + root-light/root-dark classes)
+- Controlled notifications: new networks, disappeared networks, sudden signal drops
 
-## Em Andamento / Próximos Passos (Roadmap)
-- Estender redesign visual para todas as páginas e gráficos
-- Refinar análise de canais (6 GHz, largura de canal futura)
-- Otimização de performance (diff incremental em vez de reconstruir lista)
-- Filtro/pesquisa de redes
-- Mais métricas nos gráficos (ruído, variação temporal, estabilidade)
-- Acessibilidade: foco visível, alto contraste, revisões de cores
-- Internacionalização completa (estrutura `po/` já presente)
+## Roadmap / Next Steps
+- Polish and bugfix: focus on stability and flawless operation
+- Extend visual redesign to all pages and charts
+- Refine channel analysis (6 GHz, future channel width)
+- Performance optimization (incremental diff instead of full list rebuild)
+- Network filter/search
+- More metrics in charts (noise, temporal variation, stability)
+- Accessibility: visible focus, high contrast, color reviews
+- Complete internationalization (existing `po/` structure)
+- Create user manual and documentation
+  Add donation button
+- Add new translations (French, Spanish, etc.)
+- Improve onboarding and help dialogs
+- Expand developer documentation
 
-## Variáveis de Ambiente
-| Variável | Efeito |
+## Environment Variables
+| Variable | Effect |
 |----------|--------|
-| `WIFI_ANALYZER_DEV=1` | Ativa modo mock (gera redes simuladas) |
-| `WIFI_ANALYZER_DEBUG=1` | Log detalhado no console |
-| `WIFI_ANALYZER_NO_NOTIF=1` | Desliga notificações de rede independentemente da preferência |
+| `WIFI_ANALYZER_DEV=1` | Enables mock mode (generates simulated networks) |
+| `WIFI_ANALYZER_DEBUG=1` | Enables detailed console logging |
+| `WIFI_ANALYZER_NO_NOTIF=1` | Disables network notifications regardless of user preference |
 
-## Preferências (GSettings)
+## Preferences (GSettings)
 Schema: `com.example.WifiAnalyzer`
-- `refresh-interval` (int, segundos)
+- `refresh-interval` (int, seconds)
 - `enable-notifications` (bool)
 - `color-scheme` (`system`, `light`, `dark`)
 - `icon-variant` (`default`, `alt1`, `alt2`)
 - `enable-dev-mode` (bool)
 - `enable-debug-logging` (bool)
 
-## Build & Execução (Flatpak / Meson)
-Pré-requisitos: Flatpak & Flatpak Builder instalados.
+## Build & Run (Flatpak / Meson)
+Prerequisites: Flatpak & Flatpak Builder installed.
 
-1. (Opcional) Inspecione dependências no manifest gerado em `build-dir/files/manifest.json` (ou futuro manifest principal).
-2. Compile via Meson para desenvolvimento local (fora de sandbox):
+1. (Optional) Inspect dependencies in the manifest at `build-dir/files/manifest.json` (or future main manifest).
+2. Compile via Meson for local development (outside sandbox):
 ```
 meson setup build
 meson compile -C build
-./build/wifi-analyzer   # se binário/script for gerado localmente
+./build/wifi-analyzer   # if binary/script is generated locally
 ```
-3. Executar dentro do Flatpak (padrão durante desenvolvimento):
+3. Run inside Flatpak (default during development):
 ```
 flatpak run --env=WIFI_ANALYZER_DEBUG=1 com.example.WifiAnalyzer
 ```
-(Se instalar localmente via `flatpak-builder` primeiro:)
+(If installing locally via `flatpak-builder` first:)
 ```
 flatpak-builder build-dir com.example.WifiAnalyzer.json --install --user --force-clean
 flatpak run com.example.WifiAnalyzer
 ```
 
-## Estrutura (Resumo)
-- `src/` Código principal (application.js, window.js, networkManager.js, *charts*, *analyzers*)
-- `data/` Arquivos .desktop, metainfo, schemas GSettings, ícones
-- `po/` Internacionalização
-- `modern.css` Estilos customizados
+## Structure (Summary)
+- `src/` Main code (application.js, window.js, networkManager.js, *charts*, *analyzers*)
+- `data/` .desktop files, metainfo, GSettings schemas, icons
+- `po/` Internationalization
+- `modern.css` Custom styles
 
-## Contribuindo
-Contribuições são bem-vindas nesta fase inicial:
-1. Abra uma issue descrevendo bug ou proposta.
-2. Para PRs: mantenha commits claros e explique mudanças no contexto de UI/UX ou backend.
-3. Respeite o estilo atual (GJS + Libadwaita patterns). Evite dependências externas desnecessárias.
+## Contributing
+Contributions are welcome at this mature stage:
+1. Open an issue describing a bug or proposal.
+2. For PRs: keep commits clear and explain changes in the context of UI/UX or backend.
+3. Respect current style (GJS + Libadwaita patterns). Avoid unnecessary external dependencies.
 
-## Status de Estabilidade
-Muitas APIs internas podem mudar (nomes de métodos, estrutura de objetos de rede, tokens de CSS). Não recomendado empacotar em distros ainda.
+## Stability Status
+Internal APIs may still change (method names, network object structure, CSS tokens). Not recommended for distro packaging yet.
 
-## Licença
-GPL-3.0 (ver About dialog / futuro arquivo LICENSE).
+## License
+GPL-3.0 (see About dialog / future LICENSE file).
 
 ---
-Feedback, sugestões e críticas são essenciais nesta fase. Obrigado por testar!
+Feedback, suggestions, and criticism are essential at this stage. Thank you for testing and supporting the project!
