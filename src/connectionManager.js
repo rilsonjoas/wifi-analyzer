@@ -21,6 +21,12 @@ var ConnectionManager = GObject.registerClass(
 
     async scanConnections() {
       try {
+        // Verificar se nmcli está disponível
+        if (!GLib.find_program_in_path("nmcli")) {
+          print(`DEBUG: nmcli não encontrado, retornando dados vazios`);
+          return { saved: [], active: [], devices: [] };
+        }
+        
         // Buscar todas as conexões salvas
         await this._loadSavedConnections();
         
@@ -138,6 +144,12 @@ var ConnectionManager = GObject.registerClass(
 
     async loadAvailableNetworks() {
       try {
+        // Verificar se nmcli está disponível
+        if (!GLib.find_program_in_path("nmcli")) {
+          print(`DEBUG: nmcli não encontrado para loadAvailableNetworks`);
+          return [];
+        }
+        
         const [, stdout] = GLib.spawn_command_line_sync(
           "nmcli -t -f SSID,SIGNAL,SECURITY,IN-USE device wifi list"
         );

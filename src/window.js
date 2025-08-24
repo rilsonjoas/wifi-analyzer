@@ -43,6 +43,7 @@ var WifiAnalyzerWindow = GObject.registerClass(
       this._networkManagementWindow = null;
       this._currentNetworkInfo = null;
       this._networkDevices = [];
+      this._isFirstScan = true; // Controle para saber se é a primeira atualização
 
       this._buildUI();
       this._setupThemeManagement(); // Sempre seguir o padrão do sistema
@@ -56,7 +57,30 @@ var WifiAnalyzerWindow = GObject.registerClass(
       this._networkManager.startRealTimeMonitoring();
     }
 
+    // Método público para exibir toasts
+    showToast(message, timeout = 3) {
+      try {
+        const toast = new Adw.Toast({
+          title: message,
+          timeout: timeout
+        });
+        
+        if (this._toastOverlay) {
+          this._toastOverlay.add_toast(toast);
+          print(`DEBUG: Toast exibido: ${message}`);
+        } else {
+          print(`TOAST: ${message}`);
+        }
+      } catch (error) {
+        print(`ERRO ao exibir toast: ${error.message}`);
+      }
+    }
+
     _buildUI() {
+      // Toast Overlay para notificações
+      this._toastOverlay = new Adw.ToastOverlay();
+      this.set_content(this._toastOverlay);
+
       // Estrutura Principal
       this._splitView = new Adw.OverlaySplitView({
         vexpand: true,
@@ -65,7 +89,7 @@ var WifiAnalyzerWindow = GObject.registerClass(
         max_sidebar_width: 350,
         min_sidebar_width: 280,
       });
-      this.set_content(this._splitView);
+      this._toastOverlay.set_child(this._splitView);
 
       this._splitView.set_sidebar(this._createSidebar());
 
@@ -103,6 +127,12 @@ var WifiAnalyzerWindow = GObject.registerClass(
         this._selectAllNetworks(false)
       );
       this.add_action(deselectAllAction);
+
+      const selectAllAction = new Gio.SimpleAction({ name: "selectAll" });
+      selectAllAction.connect("activate", () =>
+        this._selectAllNetworks(true)
+      );
+      this.add_action(selectAllAction);
     }
 
     _createMenuPopover() {
@@ -183,6 +213,7 @@ var WifiAnalyzerWindow = GObject.registerClass(
       });
 
       const selectionMenuModel = Gio.Menu.new();
+      selectionMenuModel.append("Selecionar Todas", "win.selectAll");
       selectionMenuModel.append("Desselecionar Todas", "win.deselectAll");
       const selectionMenu = new Gtk.MenuButton({
         icon_name: "edit-select-all-symbolic",
@@ -211,7 +242,7 @@ var WifiAnalyzerWindow = GObject.registerClass(
 
       const telemetryButton = new Gtk.Button({
         icon_name: "speedometer-symbolic",
-        tooltip_text: "Abrir Telemetria e Hunt Mode",
+        tooltip_text: "Abrir Telemetria e Modo Monitor",
       });
       telemetryButton.connect("clicked", () => {
         this._openTelemetryWindow();
@@ -446,11 +477,13 @@ var WifiAnalyzerWindow = GObject.registerClass(
 
       networks.forEach((n) => {
         if (!this._selectedNetworks.has(n.bssid)) {
-          // Por padrão, todas as redes são selecionadas automaticamente
-          this._selectedNetworks.set(n.bssid, {
-            name: n.ssid,
-            history: [],
-          });
+          // Só selecionar automaticamente na primeira varredura
+          if (this._isFirstScan) {
+            this._selectedNetworks.set(n.bssid, {
+              name: n.ssid,
+              history: [],
+            });
+          }
         }
 
         if (this._selectedNetworks.has(n.bssid)) {
@@ -464,6 +497,11 @@ var WifiAnalyzerWindow = GObject.registerClass(
           if (history.length > 100) history.shift();
         }
       });
+
+      // Marcar que a primeira varredura foi concluída
+      if (this._isFirstScan) {
+        this._isFirstScan = false;
+      }
 
       // Buscar informações da rede conectada
       this._updateCurrentNetworkInfo();
@@ -532,6 +570,9 @@ var WifiAnalyzerWindow = GObject.registerClass(
         });
 
         toggle.connect("notify::active", () => {
+          // Quando o usuário faz uma seleção manual, não deve mais selecionar automaticamente novas redes
+          this._isFirstScan = false;
+          
           if (toggle.get_active()) {
             if (!this._selectedNetworks.has(net.bssid)) {
               this._selectedNetworks.set(net.bssid, {
@@ -614,6 +655,9 @@ var WifiAnalyzerWindow = GObject.registerClass(
     }
 
     _selectAllNetworks(select) {
+      // Quando o usuário faz uma seleção manual, não deve mais selecionar automaticamente novas redes
+      this._isFirstScan = false;
+      
       this._lastNetworks.forEach((net) => {
         if (select) {
           if (!this._selectedNetworks.has(net.bssid)) {
@@ -713,7 +757,9 @@ var WifiAnalyzerWindow = GObject.registerClass(
       }
 
       try {
-        this._networkManagementWindow = new NetworkManagementWindow();
+        this._networkManagementWindow = new NetworkManagementWindow({
+          networkManager: this._networkManager
+        });
         
         this._networkManagementWindow.set_transient_for(this);
 
@@ -729,18 +775,21 @@ var WifiAnalyzerWindow = GObject.registerClass(
     }
 
     _setupThemeManagement() {
-      // Sempre seguir o padrão do sistema GNOME
+      // Deixar o tema ser gerenciado pela aplicação principal
+      // Configuração mínima apenas para garantir que a janela acompanhe mudanças de tema
       const styleManager = Adw.StyleManager.get_default();
-      styleManager.set_color_scheme(Adw.ColorScheme.DEFAULT);
       
       const update = () => {
         const isDark = styleManager.dark;
-        this.get_first_child().remove_css_class(isDark ? "light" : "dark");
-        this.get_first_child().add_css_class(isDark ? "dark" : "light");
+        // Apenas atualizações mínimas de CSS classes se necessário
+        if (this.get_first_child()) {
+          this.get_first_child().remove_css_class(isDark ? "light" : "dark");
+          this.get_first_child().add_css_class(isDark ? "dark" : "light");
+        }
       };
 
       styleManager.connect("notify::dark", update);
-      update(); // Chamar uma vez para definir o estado inicial
+      update();
     }
   }
 );

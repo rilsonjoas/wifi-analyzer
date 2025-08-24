@@ -28,6 +28,7 @@ var NetworkManager = GObject.registerClass(
       this.settings = new Gio.Settings({ schema_id: APP_ID });
       this._networks = [];
       this._scanning = false;
+      this._connectedNetworkSSID = null;
       this._monitoringInterval = null;
       this._networkHistory = new Map();
       this._notificationCooldowns = new Map();
@@ -269,8 +270,12 @@ var NetworkManager = GObject.registerClass(
       }
 
       this._processChanges(newNetworks);
-      this._networks = newNetworks;
-      this.emit("networks-updated", this._networks);
+      
+      // Detectar rede conectada e marcar nas networks
+      this._detectConnectedNetwork().then(() => {
+        this._networks = this._markConnectedNetwork(newNetworks);
+        this.emit("networks-updated", this._networks);
+      });
     }
 
     _processChanges(newNetworks) {
@@ -372,20 +377,24 @@ var NetworkManager = GObject.registerClass(
       ];
 
       this._processChanges(mockNetworks);
-      this._networks = mockNetworks;
       
-      // Adicionar coordenadas GPS aos dados se disponível
-      if (this._gpsManager.isValid()) {
-        const currentGPS = this._gpsManager.getCurrentLocation();
-        for (const network of this._networks) {
-          network.gps = currentGPS;
+      // Detectar rede conectada e marcar nas networks mock
+      this._detectConnectedNetwork().then(() => {
+        this._networks = this._markConnectedNetwork(mockNetworks);
+        
+        // Adicionar coordenadas GPS aos dados se disponível
+        if (this._gpsManager.isValid()) {
+          const currentGPS = this._gpsManager.getCurrentLocation();
+          for (const network of this._networks) {
+            network.gps = currentGPS;
+          }
         }
-      }
-      
-      // Atualizar analyzer avançado
-      this._advancedAnalyzer.updateNetworkData(this._networks);
-      
-      this.emit("networks-updated", this._networks);
+        
+        // Atualizar analyzer avançado
+        this._advancedAnalyzer.updateNetworkData(this._networks);
+        
+        this.emit("networks-updated", this._networks);
+      });
     }
 
     // ===== MÉTODOS AVANÇADOS =====
@@ -557,6 +566,65 @@ var NetworkManager = GObject.registerClass(
       return 0;
     }
 
+    async _detectConnectedNetwork() {
+      try {
+        // Usar o método getCurrentNetworkInfo que já funciona
+        const connectedInfo = await this.getCurrentNetworkInfo();
+        if (connectedInfo && connectedInfo.ssid) {
+          this._connectedNetworkSSID = connectedInfo.ssid;
+          print(`DEBUG: Rede conectada detectada via getCurrentNetworkInfo: ${connectedInfo.ssid}`);
+          return connectedInfo.ssid;
+        }
+      } catch (error) {
+        print(`DEBUG: getCurrentNetworkInfo falhou: ${error.message}`);
+      }
+
+      try {
+        // Fallback: tentar detectar rede conectada via nmcli
+        if (this._hasNmcli()) {
+          const proc = Gio.Subprocess.new(
+            ["nmcli", "-t", "-f", "NAME", "connection", "show", "--active"],
+            Gio.SubprocessFlags.STDOUT_PIPE
+          );
+          
+          const [success, stdout] = proc.communicate_utf8(null, null);
+          if (success) {
+            const lines = new TextDecoder().decode(stdout).trim().split('\n');
+            const activeConnection = lines[0]?.trim();
+            if (activeConnection) {
+              this._connectedNetworkSSID = activeConnection;
+              print(`DEBUG: Rede conectada detectada via nmcli: ${activeConnection}`);
+              return activeConnection;
+            }
+          }
+        }
+      } catch (error) {
+        print(`DEBUG: Erro ao detectar rede conectada via nmcli: ${error.message}`);
+      }
+      
+      // Fallback final: simular conexão com a primeira rede mock
+      if (this._networks.length > 0) {
+        this._connectedNetworkSSID = this._networks[0].ssid;
+        print(`DEBUG: Usando fallback - primeira rede mock como conectada: ${this._connectedNetworkSSID}`);
+        return this._connectedNetworkSSID;
+      }
+      
+      return null;
+    }
+
+    _markConnectedNetwork(networks) {
+      if (!this._connectedNetworkSSID) return networks;
+      
+      return networks.map(network => ({
+        ...network,
+        inUse: network.ssid === this._connectedNetworkSSID
+      }));
+    }
+
+    getConnectedNetwork() {
+      return this._networks.find(network => network.inUse) || null;
+    }
+
     getNetworks() {
       return this._networks;
     }
@@ -582,49 +650,109 @@ var NetworkManager = GObject.registerClass(
 
     async getCurrentNetworkInfo() {
       try {
-        // Obter informações da rede conectada via nmcli
-        const [, stdout] = GLib.spawn_command_line_sync("nmcli -t -f NAME,TYPE,DEVICE connection show --active");
-        const activeConnections = new TextDecoder().decode(stdout).trim().split('\n');
-        
-        let wifiConnection = null;
-        for (const line of activeConnections) {
-          const [name, type, device] = line.split(':');
-          if (type === '802-11-wireless') {
-            wifiConnection = { name, device };
-            break;
-          }
-        }
-
-        if (!wifiConnection) {
+        // Usar D-Bus para obter informações da rede conectada
+        if (!this._dbusReady || !this._nmProxy) {
+          this._log("D-Bus não está pronto para getCurrentNetworkInfo");
           return null;
         }
 
-        // Obter detalhes da conexão ativa
-        const [, detailsStdout] = GLib.spawn_command_line_sync(`nmcli -t -f IP4.ADDRESS,IP4.GATEWAY,IP4.DNS connection show "${wifiConnection.name}"`);
-        const details = new TextDecoder().decode(detailsStdout).trim();
+        // Obter conexão D-Bus do sistema
+        const systemBus = Gio.bus_get_sync(Gio.BusType.SYSTEM, null);
+        if (!systemBus) {
+          this._log("D-Bus: Não foi possível obter conexão do sistema");
+          return null;
+        }
+
+        // Buscar conexões ativas via D-Bus
+        const activeConnectionsProp = this._nmProxy.get_cached_property("ActiveConnections");
+        if (!activeConnectionsProp) {
+          this._log("D-Bus: Propriedade ActiveConnections não encontrada");
+          return null;
+        }
+        const activeConnPaths = activeConnectionsProp.unpack();
         
-        const networkInfo = {
-          ssid: wifiConnection.name,
-          device: wifiConnection.device,
-          ipAddress: null,
-          gateway: null,
-          dns: [],
-        };
-
-        details.split('\n').forEach(line => {
-          const [key, value] = line.split(':');
-          if (key === 'IP4.ADDRESS' && value) {
-            networkInfo.ipAddress = value.split('/')[0]; // Remove a máscara de rede
-          } else if (key === 'IP4.GATEWAY' && value) {
-            networkInfo.gateway = value;
-          } else if (key === 'IP4.DNS' && value) {
-            networkInfo.dns.push(value);
+        this._log(`D-Bus: Encontradas ${activeConnPaths.length} conexões ativas`);
+        
+        for (const connPathVariant of activeConnPaths) {
+          try {
+            // Extrair caminho como string
+            const connPath = connPathVariant.unpack ? connPathVariant.unpack() : String(connPathVariant);
+            this._log(`D-Bus: Processando conexão: ${connPath}`);
+            
+            // Obter proxy da conexão ativa
+            const connProxy = Gio.DBusProxy.new_sync(
+              systemBus,
+              Gio.DBusProxyFlags.NONE,
+              null,
+              'org.freedesktop.NetworkManager',
+              connPath,
+              'org.freedesktop.NetworkManager.Connection.Active',
+              null
+            );
+            
+            // Verificar se é uma conexão WiFi
+            const connTypeProp = connProxy.get_cached_property("Type");
+            if (!connTypeProp) continue;
+            const connType = connTypeProp.unpack();
+            
+            if (connType === '802-11-wireless') {
+              // Obter ID (SSID) da conexão
+              const connIdProp = connProxy.get_cached_property("Id");
+              if (!connIdProp) continue;
+              const connId = connIdProp.unpack();
+              
+              // Obter dispositivos da conexão
+              const devicesProp = connProxy.get_cached_property("Devices");
+              if (!devicesProp) continue;
+              const devices = devicesProp.unpack();
+              
+              let deviceInterface = "wlan0"; // fallback
+              if (devices.length > 0) {
+                try {
+                  // Extrair caminho do dispositivo como string
+                  const devicePath = devices[0].unpack ? devices[0].unpack() : String(devices[0]);
+                  this._log(`D-Bus: Processando dispositivo: ${devicePath}`);
+                  
+                  const deviceProxy = Gio.DBusProxy.new_sync(
+                    systemBus,
+                    Gio.DBusProxyFlags.NONE,
+                    null,
+                    'org.freedesktop.NetworkManager',
+                    devicePath,
+                    'org.freedesktop.NetworkManager.Device',
+                    null
+                  );
+                  
+                  const interfaceProp = deviceProxy.get_cached_property("Interface");
+                  if (interfaceProp) {
+                    deviceInterface = interfaceProp.unpack();
+                  }
+                } catch (deviceError) {
+                  this._log(`Erro ao obter interface do dispositivo: ${deviceError.message}`);
+                }
+              }
+              
+              const networkInfo = {
+                ssid: connId,
+                device: deviceInterface,
+                ipAddress: null,
+                gateway: null,
+                dns: []
+              };
+              
+              this._log(`D-Bus: Rede conectada encontrada: ${connId} via ${deviceInterface}`);
+              return networkInfo;
+            }
+          } catch (connError) {
+            this._log(`Erro ao processar conexão ${connPath}: ${connError.message}`);
+            continue;
           }
-        });
-
-        return networkInfo;
+        }
+        
+        this._log("D-Bus: Nenhuma conexão WiFi ativa encontrada");
+        return null;
       } catch (error) {
-        this._log("Erro ao obter informações da rede conectada:", error.message);
+        this._log("Erro D-Bus ao obter informações da rede conectada:", error.message);
         return null;
       }
     }

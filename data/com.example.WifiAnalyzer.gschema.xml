@@ -32,6 +32,12 @@
       <summary>Color scheme preference</summary>
       <description>One of: system, light, dark.</description>
     </key>
+    <!-- Configurações de idioma -->
+    <key name="language" type="s">
+      <default>'system'</default>
+      <summary>Language preference</summary>
+      <description>One of: system, pt-BR, en-US.</description>
+    </key>
     <!-- Opções de desenvolvimento / debug -->
     <key name="enable-dev-mode" type="b">
       <default>false</default>
@@ -42,6 +48,28 @@
       <default>false</default>
       <summary>Enable verbose debug logging</summary>
       <description>Print detailed debug logs to console.</description>
+    </key>
+    <!-- Configurações de GPS -->
+    <key name="enable-gps" type="b">
+      <default>false</default>
+      <summary>Enable GPS tracking</summary>
+      <description>Use GPS to track location for network mapping.</description>
+    </key>
+    <!-- Persistência de alvos de hunt e gravação -->
+    <key name="hunt-targets" type="as">
+      <default>[]</default>
+      <summary>Persistent hunt targets</summary>
+      <description>List of network BSSIDs being tracked in hunt mode.</description>
+    </key>
+    <key name="hunt-mode-enabled" type="b">
+      <default>false</default>
+      <summary>Hunt mode state</summary>
+      <description>Whether hunt mode is currently enabled.</description>
+    </key>
+    <key name="recording-enabled" type="b">
+      <default>false</default>
+      <summary>Recording state</summary>
+      <description>Whether telemetry recording is currently active.</description>
     </key>
   </schema>
 </schemalist>

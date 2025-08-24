@@ -2,7 +2,7 @@
 
 print("DEBUG: networkDetailsDialog.js está sendo carregado");
 
-const { GObject, Gtk, Adw, Gio, GLib } = imports.gi;
+const { GObject, Gtk, Adw, Gio, GLib, Gdk } = imports.gi;
 
 var NetworkDetailsDialog = GObject.registerClass(
   {
@@ -49,26 +49,67 @@ var NetworkDetailsDialog = GObject.registerClass(
         }),
       });
 
-      // Botão Hunt Mode
+      // Botão Modo Monitor - usar ícone mais universal
       this._huntButton = new Gtk.ToggleButton({
-        icon_name: "view-pin-symbolic",
-        tooltip_text: "Adicionar/Remover do Hunt Mode",
+        label: "🎯", // Emoji como fallback visual
+        tooltip_text: "Adicionar/Remover do Modo Monitor",
+        visible: true,
+        css_classes: ["flat"],
+        valign: Gtk.Align.CENTER,
+        halign: Gtk.Align.CENTER,
+        width_request: 40,
+        height_request: 40,
+        margin_start: 6,
+        margin_end: 6
+      });
+      
+      // Tentar definir ícone, mas manter emoji como fallback
+      try {
+        this._huntButton.set_icon_name("starred-symbolic");
+        this._huntButton.set_label(""); // Limpar emoji se ícone funcionou
+      } catch (e) {
+        print(`INFO: Usando emoji como ícone do botão Monitor Mode`);
+        // Manter emoji como fallback
+      }
+
+      // Botões de ação diretos (substituindo menu que não funciona em Adw.Window)
+      const actionsBox = new Gtk.Box({
+        orientation: Gtk.Orientation.HORIZONTAL,
+        spacing: 6
       });
 
-      // Menu de ações
-      const actionsMenu = Gio.Menu.new();
-      actionsMenu.append("Exportar dados desta rede", "details.export");
-      actionsMenu.append("Copiar BSSID", "details.copy-bssid");
-      actionsMenu.append("Abrir telemetria", "details.open-telemetry");
-      
-      const actionsButton = new Gtk.MenuButton({
-        icon_name: "view-more-symbolic",
-        tooltip_text: "Mais ações",
-        menu_model: actionsMenu
+      // Botão exportar
+      const exportButton = new Gtk.Button({
+        icon_name: "document-save-symbolic",
+        tooltip_text: "Exportar dados desta rede",
+        css_classes: ["flat"]
       });
+      exportButton.connect('clicked', () => this._exportNetworkData());
+
+      // Botão copiar BSSID
+      const copyBssidButton = new Gtk.Button({
+        icon_name: "edit-copy-symbolic",
+        tooltip_text: "Copiar BSSID",
+        css_classes: ["flat"]
+      });
+      copyBssidButton.connect('clicked', () => {
+        this._copyBssidToClipboard("BSSID copiado do cabeçalho");
+      });
+
+      // Botão telemetria
+      const telemetryButton = new Gtk.Button({
+        icon_name: "utilities-system-monitor-symbolic", 
+        tooltip_text: "Abrir telemetria",
+        css_classes: ["flat"]
+      });
+      telemetryButton.connect('clicked', () => this._openTelemetryWindow());
+
+      actionsBox.append(exportButton);
+      actionsBox.append(copyBssidButton); 
+      actionsBox.append(telemetryButton);
 
       headerBar.pack_start(this._huntButton);
-      headerBar.pack_end(actionsButton);
+      headerBar.pack_end(actionsBox);
 
       // Conteúdo scrollável
       const scrolled = new Gtk.ScrolledWindow({
@@ -90,7 +131,7 @@ var NetworkDetailsDialog = GObject.registerClass(
       contentBox.append(this._createSignalSection());
       contentBox.append(this._createSecuritySection());
       contentBox.append(this._createLocationSection());
-      contentBox.append(this._createTechnicalSection());
+      // contentBox.append(this._createTechnicalSection());
       contentBox.append(this._createHistorySection());
 
       scrolled.set_child(contentBox);
@@ -138,9 +179,7 @@ var NetworkDetailsDialog = GObject.registerClass(
       });
 
       copyButton.connect('clicked', () => {
-        const clipboard = this.get_clipboard();
-        clipboard.set_text(this._networkData.bssid);
-        this._showToast("BSSID copiado");
+        this._copyBssidToClipboard("BSSID copiado da seção de informações");
       });
 
       bssidRow.add_suffix(copyButton);
@@ -347,63 +386,7 @@ var NetworkDetailsDialog = GObject.registerClass(
       return group;
     }
 
-    _createTechnicalSection() {
-      const group = new Adw.PreferencesGroup({
-        title: "Informações Técnicas"
-      });
-
-      // Modo
-      if (this._networkData.mode) {
-        const modeRow = new Adw.ActionRow({
-          title: "Modo",
-          subtitle: this._networkData.mode
-        });
-
-        const modeIcon = new Gtk.Image({
-          icon_name: "preferences-system-symbolic",
-          css_classes: ["dim-label"]
-        });
-        modeRow.add_prefix(modeIcon);
-
-        group.add(modeRow);
-      }
-
-      // Velocidades suportadas
-      if (this._networkData.rates && this._networkData.rates.length > 0) {
-        const maxRate = Math.max(...this._networkData.rates);
-        const ratesRow = new Adw.ActionRow({
-          title: "Velocidade Máxima",
-          subtitle: `${maxRate} Mbps`
-        });
-
-        const speedIcon = new Gtk.Image({
-          icon_name: "speedometer-symbolic",
-          css_classes: ["dim-label"]
-        });
-        ratesRow.add_prefix(speedIcon);
-
-        group.add(ratesRow);
-      }
-
-      // Fabricante (OUI lookup)
-      const vendor = this._lookupVendor(this._networkData.bssid);
-      if (vendor) {
-        const vendorRow = new Adw.ActionRow({
-          title: "Fabricante",
-          subtitle: vendor
-        });
-
-        const vendorIcon = new Gtk.Image({
-          icon_name: "applications-engineering-symbolic",
-          css_classes: ["dim-label"]
-        });
-        vendorRow.add_prefix(vendorIcon);
-
-        group.add(vendorRow);
-      }
-
-      return group;
-    }
+    // Seção de Informações Técnicas removida por não conter dados obrigatórios
 
     _createHistorySection() {
       const group = new Adw.PreferencesGroup({
@@ -458,10 +441,19 @@ var NetworkDetailsDialog = GObject.registerClass(
     }
 
     _populateData() {
-      // Verificar se é alvo do hunt mode
+      // Garantir que o botão Monitor Mode sempre esteja visível
+      this._huntButton.set_visible(true);
+      
+      // Verificar se é alvo do modo monitor
       if (this._networkManager) {
         this._isHuntTarget = this._networkManager.isHuntTarget(this._networkData.bssid);
         this._huntButton.set_active(this._isHuntTarget);
+        this._updateHuntButtonStyle();
+      } else {
+        // Mesmo sem networkManager, mostrar botão em estado inativo
+        print("AVISO: NetworkManager não disponível, botão Monitor Mode em modo limitado");
+        this._isHuntTarget = false;
+        this._huntButton.set_active(false);
         this._updateHuntButtonStyle();
       }
     }
@@ -479,6 +471,10 @@ var NetworkDetailsDialog = GObject.registerClass(
             this._networkManager.removeHuntTarget(this._networkData.bssid);
             this._showToast(`${this._networkData.ssid || 'Rede'} removida dos alvos`);
           }
+        } else {
+          // Sem networkManager, mostrar aviso mas permitir que o botão funcione visualmente
+          this._showToast(`⚠️ Modo Monitor: NetworkManager não disponível`);
+          print(`DEBUG: Tentativa de ${this._isHuntTarget ? 'adicionar' : 'remover'} ${this._networkData.bssid} ao hunt mode sem networkManager`);
         }
         
         this._updateHuntButtonStyle();
@@ -507,11 +503,78 @@ var NetworkDetailsDialog = GObject.registerClass(
 
     _updateHuntButtonStyle() {
       if (this._isHuntTarget) {
+        // Botão ativo - em modo monitor
         this._huntButton.set_css_classes(["destructive-action"]);
-        this._huntButton.set_tooltip_text("Remover do Hunt Mode");
+        this._huntButton.set_tooltip_text("Remover do Modo Monitor");
+        
+        // Tentar diferentes ícones para ver qual está disponível
+        const activeIcons = [
+          "starred-symbolic",           // Estrela preenchida
+          "bookmark-new-symbolic",      // Marcador
+          "view-pin-symbolic",         // Pin padrão 
+          "security-high-symbolic",    // Shield
+          "emblem-important-symbolic", // Importante
+          "preferences-system-symbolic", // Sistema (muito comum)
+          "applications-system-symbolic", // Apps sistema
+          "folder-symbolic"            // Pasta (muito básico)
+        ];
+        
+        let iconSet = false;
+        for (const iconName of activeIcons) {
+          try {
+            this._huntButton.set_icon_name(iconName);
+            iconSet = true;
+            break;
+          } catch (e) {
+            continue;
+          }
+        }
+        
+        if (!iconSet) {
+          // Fallback: usar emoji/texto se ícone não funcionar
+          this._huntButton.set_label("🎯✓"); // Emoji ativo
+          this._huntButton.set_icon_name(""); // Limpar ícone para mostrar texto
+        } else {
+          // Garantir que label está limpo quando ícone está definido
+          this._huntButton.set_label("");
+        }
+        
       } else {
-        this._huntButton.set_css_classes(["suggested-action"]);
-        this._huntButton.set_tooltip_text("Adicionar ao Hunt Mode");
+        // Botão inativo - não em modo monitor
+        this._huntButton.set_css_classes(["flat"]);
+        this._huntButton.set_tooltip_text("Adicionar ao Modo Monitor");
+        
+        // Ícones para estado inativo
+        const inactiveIcons = [
+          "non-starred-symbolic",       // Estrela vazia
+          "bookmark-new-symbolic",      // Marcador
+          "view-pin-symbolic",         // Pin
+          "security-low-symbolic",     // Shield baixo
+          "emblem-default-symbolic",   // Padrão
+          "applications-utilities-symbolic", // Utilitários
+          "view-refresh-symbolic",     // Refresh (muito comum)
+          "document-new-symbolic"      // Documento (muito básico)
+        ];
+        
+        let iconSet = false;
+        for (const iconName of inactiveIcons) {
+          try {
+            this._huntButton.set_icon_name(iconName);
+            iconSet = true;
+            break;
+          } catch (e) {
+            continue;
+          }
+        }
+        
+        if (!iconSet) {
+          // Fallback: usar emoji/texto se ícone não funcionar
+          this._huntButton.set_label("🎯"); // Emoji inativo
+          this._huntButton.set_icon_name(""); // Limpar ícone para mostrar texto
+        } else {
+          // Garantir que label está limpo quando ícone está definido
+          this._huntButton.set_label("");
+        }
       }
     }
 
@@ -653,15 +716,246 @@ var NetworkDetailsDialog = GObject.registerClass(
     async _exportNetworkData() {
       try {
         const data = {
-          network: this._networkData,
-          exportTime: new Date().toISOString(),
-          exportType: "single-network"
+          metadata: {
+            exportTime: new Date().toISOString(),
+            exportType: "single-network",
+            exportVersion: "1.0",
+            source: "WiFi Analyzer"
+          },
+          network: {
+            ssid: this._networkData.ssid,
+            bssid: this._networkData.bssid,
+            channel: this._networkData.channel,
+            frequency: this._networkData.frequency,
+            signal: this._networkData.signal,
+            security: this._networkData.security,
+            firstSeen: this._networkData.firstSeen,
+            lastSeen: this._networkData.lastSeen,
+            location: this._networkData.location,
+            signalHistory: this._networkData.signalHistory || [],
+            detectionCount: this._networkData.detectionCount || 1,
+            analysis: {
+              signalQuality: this._calculateSignalQuality(this._networkData.signal),
+              estimatedDistance: this._estimateDistance(this._networkData.signal, this._networkData.frequency),
+              securityLevel: this._evaluateSecurityLevel(this._networkData.security)
+            }
+          }
         };
 
-        // Implementar salvamento
-        this._showToast("Dados da rede exportados");
+        // Mostrar dialog de escolha de formato
+        await this._showExportDialog(data);
+        
       } catch (error) {
-        this._showToast(`Erro na exportação: ${error.message}`);
+        this._showToast(`❌ Erro na exportação: ${error.message}`);
+        print(`ERRO na exportação: ${error.message}`);
+      }
+    }
+
+    async _showExportDialog(data) {
+      // Criar dialog de exportação
+      const dialog = new Adw.MessageDialog({
+        heading: "Exportar Dados da Rede",
+        body: `Escolha o formato de exportação para a rede: ${this._networkData.ssid || 'Rede Oculta'}`,
+        modal: true,
+        transient_for: this
+      });
+
+      // Adicionar botões de formato
+      dialog.add_response("json", "JSON");
+      dialog.add_response("csv", "CSV"); 
+      dialog.add_response("clipboard", "Área de Transferência");
+      dialog.add_response("cancel", "Cancelar");
+
+      dialog.set_default_response("json");
+      dialog.set_close_response("cancel");
+
+      const response = await new Promise((resolve) => {
+        dialog.connect('response', (dialog, response) => {
+          resolve(response);
+          dialog.close();
+        });
+        dialog.present();
+      });
+
+      switch (response) {
+        case "json":
+          await this._exportAsJSON(data);
+          break;
+        case "csv":
+          await this._exportAsCSV(data);
+          break;
+        case "clipboard":
+          await this._exportToClipboard(data);
+          break;
+        default:
+          return; // Cancelado
+      }
+    }
+
+    async _exportAsJSON(data) {
+      try {
+        const jsonData = JSON.stringify(data, null, 2);
+        const filename = `wifi_network_${this._networkData.bssid?.replace(/:/g, '_')}_${new Date().toISOString().split('T')[0]}.json`;
+        
+        await this._saveToFile(jsonData, filename, "application/json");
+        this._showToast(`✅ Dados exportados como JSON`);
+      } catch (error) {
+        this._showToast(`❌ Erro ao exportar JSON: ${error.message}`);
+      }
+    }
+
+    async _exportAsCSV(data) {
+      try {
+        const csvHeaders = [
+          "SSID", "BSSID", "Canal", "Frequencia_MHz", "Sinal_dBm", 
+          "Seguranca", "Primeira_Deteccao", "Ultima_Deteccao", "Contagem_Deteccoes",
+          "Qualidade_Sinal", "Distancia_Estimada", "Nivel_Seguranca"
+        ];
+
+        const csvRow = [
+          `"${data.network.ssid || ''}"`,
+          `"${data.network.bssid}"`,
+          data.network.channel,
+          data.network.frequency,
+          data.network.signal,
+          `"${data.network.security || 'Aberta'}"`,
+          `"${data.network.firstSeen}"`,
+          `"${data.network.lastSeen}"`,
+          data.network.detectionCount,
+          `"${data.network.analysis.signalQuality}%"`,
+          `"${data.network.analysis.estimatedDistance}m"`,
+          `"${data.network.analysis.securityLevel.description}"`
+        ];
+
+        const csvData = csvHeaders.join(',') + '\n' + csvRow.join(',');
+        const filename = `wifi_network_${this._networkData.bssid?.replace(/:/g, '_')}_${new Date().toISOString().split('T')[0]}.csv`;
+        
+        await this._saveToFile(csvData, filename, "text/csv");
+        this._showToast(`✅ Dados exportados como CSV`);
+      } catch (error) {
+        this._showToast(`❌ Erro ao exportar CSV: ${error.message}`);
+      }
+    }
+
+    async _exportToClipboard(data) {
+      try {
+        const textData = `Exportação de Rede WiFi - ${data.metadata.exportTime}
+        
+Informações da Rede:
+- SSID: ${data.network.ssid || 'Rede Oculta'}
+- BSSID: ${data.network.bssid}
+- Canal: ${data.network.channel} (${data.network.frequency} MHz)
+- Força do Sinal: ${data.network.signal} dBm
+- Segurança: ${data.network.security || 'Aberta'}
+- Qualidade: ${data.network.analysis.signalQuality}%
+- Distância Estimada: ${data.network.analysis.estimatedDistance}m
+- Nível de Segurança: ${data.network.analysis.securityLevel.description}
+- Primeira Detecção: ${data.network.firstSeen}
+- Última Detecção: ${data.network.lastSeen}
+- Contagem de Detecções: ${data.network.detectionCount}`;
+
+        // Usar o método de clipboard robusto já implementado
+        this._copyBssidToClipboard("Dados da rede copiados", textData);
+      } catch (error) {
+        this._showToast(`❌ Erro ao copiar: ${error.message}`);
+      }
+    }
+
+    async _saveToFile(content, filename, mimeType) {
+      try {
+        // Usar Gtk.FileChooserNative para integração nativa com GNOME/Nautilus
+        const fileDialog = new Gtk.FileChooserNative({
+          title: "Salvar arquivo de exportação",
+          action: Gtk.FileChooserAction.SAVE,
+          transient_for: this,
+          modal: true,
+          accept_label: "Salvar",
+          cancel_label: "Cancelar"
+        });
+
+        // Definir nome padrão do arquivo
+        fileDialog.set_current_name(filename);
+
+        // Adicionar filtros de arquivo baseados no tipo MIME
+        const filter = new Gtk.FileFilter();
+        
+        if (mimeType === "application/json") {
+          filter.set_name("Arquivos JSON (*.json)");
+          filter.add_mime_type("application/json");
+          filter.add_pattern("*.json");
+        } else if (mimeType === "text/csv") {
+          filter.set_name("Arquivos CSV (*.csv)");
+          filter.add_mime_type("text/csv");
+          filter.add_pattern("*.csv");
+        } else {
+          filter.set_name("Todos os arquivos (*.*)");
+          filter.add_pattern("*");
+        }
+        
+        fileDialog.add_filter(filter);
+
+        // Tentar definir diretório padrão (Downloads ou Documentos)
+        try {
+          const homeDir = GLib.get_home_dir();
+          const downloadsDir = GLib.build_filenamev([homeDir, "Downloads"]);
+          const documentsDir = GLib.build_filenamev([homeDir, "Documentos"]);
+          
+          // Verificar se Downloads existe, senão usar Documentos
+          if (GLib.file_test(downloadsDir, GLib.FileTest.IS_DIR)) {
+            const downloadsFile = Gio.File.new_for_path(downloadsDir);
+            fileDialog.set_current_folder(downloadsFile);
+          } else if (GLib.file_test(documentsDir, GLib.FileTest.IS_DIR)) {
+            const documentsFile = Gio.File.new_for_path(documentsDir);
+            fileDialog.set_current_folder(documentsFile);
+          }
+        } catch (e) {
+          print(`Aviso: Não foi possível definir diretório padrão: ${e.message}`);
+        }
+
+        const response = await new Promise((resolve) => {
+          fileDialog.connect('response', (dialog, response_id) => {
+            resolve(response_id);
+          });
+          fileDialog.show();
+        });
+
+        if (response === Gtk.ResponseType.ACCEPT) {
+          const file = fileDialog.get_file();
+          const filePath = file.get_path();
+          
+          // Salvar arquivo usando GLib/Gio de forma robusta
+          try {
+            const success = file.replace_contents(
+              content, 
+              null, // etag
+              false, // make_backup
+              Gio.FileCreateFlags.REPLACE_DESTINATION,
+              null // cancellable
+            );
+            
+            if (success[0]) {
+              this._showToast(`✅ Arquivo salvo: ${GLib.path_get_basename(filePath)}`);
+              print(`Arquivo salvo em: ${filePath}`);
+            } else {
+              throw new Error("Falha ao escrever arquivo");
+            }
+          } catch (writeError) {
+            print(`Erro ao escrever arquivo: ${writeError.message}`);
+            // Fallback para método alternativo
+            const outputStream = file.replace(null, false, Gio.FileCreateFlags.REPLACE_DESTINATION, null);
+            const bytes = new GLib.Bytes(content);
+            outputStream.write_bytes(bytes, null);
+            outputStream.close(null);
+            
+            this._showToast(`✅ Arquivo salvo: ${GLib.path_get_basename(filePath)}`);
+          }
+        }
+
+        fileDialog.destroy();
+      } catch (error) {
+        print(`Erro no save dialog: ${error.message}`);
+        // Fallback robusto: copiar para clipboard
+        this._copyBssidToClipboard("Falha ao salvar arquivo, dados copiados", content);
       }
     }
 
@@ -682,9 +976,201 @@ var NetworkDetailsDialog = GObject.registerClass(
       this.close();
     }
 
+    _copyBssidToClipboard(toastMessage, customText = null) {
+      try {
+        // Definir o texto a ser copiado
+        const textToCopy = customText || this._networkData.bssid;
+        
+        // Verificar se há texto para copiar
+        if (!textToCopy) {
+          this._showToast("❌ Erro: Nenhum texto disponível para copiar");
+          return;
+        }
+
+        // Tentar diferentes métodos de acesso ao clipboard
+        let success = false;
+        
+        // Método 1: Usando Gdk.Display
+        try {
+          const display = this.get_display();
+          const clipboard = display.get_clipboard();
+          
+          // Tentar diferentes APIs do clipboard
+          if (clipboard.set_text) {
+            clipboard.set_text(textToCopy);
+            success = true;
+          } else if (clipboard.set) {
+            clipboard.set(textToCopy);
+            success = true;
+          } else if (clipboard.set_content) {
+            const content = Gdk.ContentProvider.new_for_value(textToCopy);
+            clipboard.set_content(content);
+            success = true;
+          }
+        } catch (e) {
+          print(`Método 1 falhou: ${e.message}`);
+        }
+        
+        // Método 2: Usando this.get_clipboard() se método 1 falhou
+        if (!success) {
+          try {
+            const clipboard = this.get_clipboard();
+            if (clipboard && clipboard.set_text) {
+              clipboard.set_text(textToCopy);
+              success = true;
+            }
+          } catch (e) {
+            print(`Método 2 falhou: ${e.message}`);
+          }
+        }
+        
+        // Método 3: Usando Gtk.Clipboard (fallback para versões antigas)
+        if (!success) {
+          try {
+            const clipboard = Gtk.Clipboard.get(Gdk.SELECTION_CLIPBOARD);
+            if (clipboard && clipboard.set_text) {
+              clipboard.set_text(textToCopy, -1);
+              success = true;
+            }
+          } catch (e) {
+            print(`Método 3 falhou: ${e.message}`);
+          }
+        }
+
+        // Método 4: Usando ContentProvider moderno (GTK4)
+        if (!success) {
+          try {
+            const display = this.get_display();
+            const clipboard = display.get_clipboard();
+            const provider = Gdk.ContentProvider.new_for_value(textToCopy);
+            clipboard.set_content(provider);
+            success = true;
+          } catch (e) {
+            print(`Método 4 falhou: ${e.message}`);
+          }
+        }
+
+        // Método 5: Último recurso - async set_text
+        if (!success) {
+          try {
+            const display = this.get_display();
+            const clipboard = display.get_clipboard();
+            clipboard.set_text(textToCopy);
+            success = true;
+          } catch (e) {
+            print(`Método 5 falhou: ${e.message}`);
+          }
+        }
+        
+        if (!success) {
+          throw new Error("Todos os métodos de clipboard falharam - verifique se as permissões estão corretas");
+        }
+        
+        // Confirmar com toast personalizado
+        const finalMessage = customText ? 
+          `✅ ${toastMessage || "Dados copiados"}` :
+          `✅ ${toastMessage || "BSSID copiado"}: ${textToCopy}`;
+        this._showToast(finalMessage);
+        
+        print(`DEBUG: Texto copiado com sucesso: ${customText ? '[dados da rede]' : textToCopy}`);
+        
+        // Feedback visual adicional - breve animação no botão
+        this._addCopyFeedback();
+        
+      } catch (error) {
+        print(`ERRO ao copiar BSSID: ${error.message}`);
+        this._showToast(`❌ Erro ao copiar BSSID: ${error.message}`);
+      }
+    }
+
+    _addCopyFeedback() {
+      // Adicionar feedback visual temporário aos botões de cópia
+      try {
+        // Encontrar todos os botões de cópia e dar feedback visual
+        const copyButtons = [];
+        
+        // Buscar botões na hierarquia (método simplificado)
+        const searchForCopyButtons = (widget) => {
+          if (!widget) return;
+          
+          try {
+            if (widget.get_icon_name && widget.get_icon_name() === "edit-copy-symbolic") {
+              copyButtons.push(widget);
+            }
+            
+            // Tentar buscar filhos se possível
+            if (widget.get_first_child) {
+              let child = widget.get_first_child();
+              while (child) {
+                searchForCopyButtons(child);
+                child = child.get_next_sibling();
+              }
+            }
+          } catch (e) {
+            // Ignorar erros de busca
+          }
+        };
+        
+        searchForCopyButtons(this);
+        
+        // Aplicar animação de feedback nos botões encontrados
+        copyButtons.forEach(button => {
+          try {
+            button.add_css_class("success");
+            GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1000, () => {
+              try {
+                button.remove_css_class("success");
+              } catch (e) {
+                // Ignorar se botão foi destruído
+              }
+              return GLib.SOURCE_REMOVE;
+            });
+          } catch (e) {
+            // Ignorar erros de animação
+          }
+        });
+        
+      } catch (error) {
+        // Feedback visual é opcional, não interromper o fluxo
+        print(`DEBUG: Erro no feedback visual: ${error.message}`);
+      }
+    }
+
     _showToast(message) {
-      // Implementar toast notification
-      print(`TOAST: ${message}`);
+      // Sistema de toast melhorado que usa a janela principal
+      try {
+        // Primeira tentativa: usar janela transient_for (janela principal)
+        const transientFor = this.get_transient_for();
+        if (transientFor && transientFor.showToast) {
+          transientFor.showToast(message);
+          return;
+        }
+
+        // Segunda tentativa: buscar na aplicação
+        const app = this.get_application?.();
+        if (app) {
+          const mainWindow = app.get_active_window?.();
+          if (mainWindow && mainWindow.showToast) {
+            mainWindow.showToast(message);
+            return;
+          }
+          
+          // Fallback para método add_toast direto
+          if (mainWindow && mainWindow._toastOverlay) {
+            const toast = new Adw.Toast({
+              title: message,
+              timeout: 3
+            });
+            mainWindow._toastOverlay.add_toast(toast);
+            return;
+          }
+        }
+
+        // Fallback final: imprimir na saída para debug
+        print(`TOAST: ${message}`);
+      } catch (error) {
+        print(`TOAST FALLBACK: ${message} (Erro: ${error.message})`);
+      }
     }
   }
 );

@@ -1,10 +1,4 @@
-/* Remove estilos padrão do checkbutton para que ele seja apenas um container */
-checkbutton {
-  -gtk-icon-source: none;
-  background-image: none;
-  background: none;
-  border: none;
-}
+/* Estilos mínimos para não interferir com o tema do sistema */
 
 /* O ícone de fundo (camada de baixo do Overlay) */
 .theme-icon {

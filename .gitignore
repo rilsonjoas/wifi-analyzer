@@ -8,3 +8,5 @@ meson-private/
 *.flatpak
 *.tar.gz
 compile_commands.json
+CLAUDE.md
+.claude

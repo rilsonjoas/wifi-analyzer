@@ -64,6 +64,50 @@ var PreferencesWindow = GObject.registerClass(
       scanningGroup.add(notifRow);
       this.settings.bind("enable-notifications", notifSwitch, "active", Gio.SettingsBindFlags.DEFAULT);
 
+      // Opção para habilitar/desabilitar GPS
+      const gpsRow = new Adw.ActionRow({
+        title: "Rastreamento GPS",
+        subtitle: "Usar GPS para mapear localização das redes WiFi.",
+      });
+      const gpsSwitch = new Gtk.Switch({ valign: Gtk.Align.CENTER });
+      gpsRow.add_suffix(gpsSwitch);
+      gpsRow.activatable_widget = gpsSwitch;
+      scanningGroup.add(gpsRow);
+      this.settings.bind("enable-gps", gpsSwitch, "active", Gio.SettingsBindFlags.DEFAULT);
+
+      // --- Grupo de Localização ---
+      const localizationGroup = new Adw.PreferencesGroup({
+        title: "Localização e Idioma",
+        description: "Configure as preferências de idioma da aplicação.",
+      });
+      page.add(localizationGroup);
+
+      // Opção para seleção de idioma
+      const languageRow = new Adw.ComboRow({
+        title: "Idioma da Interface",
+        subtitle: "Selecione o idioma para textos e exportações",
+        model: new Gtk.StringList({ 
+          strings: ["Sistema (Automático)", "Português (Brasil)", "English (US)"] 
+        }),
+        selected: this._getLanguageIndex()
+      });
+      
+      // Conectar mudança de idioma
+      languageRow.connect('notify::selected', () => {
+        const selectedIndex = languageRow.get_selected();
+        const languages = ['system', 'pt-BR', 'en-US'];
+        this.settings.set_string("language", languages[selectedIndex]);
+        
+        // Mostrar aviso sobre reinicialização
+        const toast = new Adw.Toast({
+          title: "Reinicie a aplicação para aplicar as mudanças de idioma",
+          timeout: 5
+        });
+        this.get_root().add_toast(toast);
+      });
+      
+      localizationGroup.add(languageRow);
+
       // --- Grupo de Perfis (Exemplo de funcionalidade futura) ---
       const profilesGroup = new Adw.PreferencesGroup({
         title: "Perfis de Monitoramento (Exemplo)",
@@ -100,6 +144,13 @@ var PreferencesWindow = GObject.registerClass(
       devGroup.add(infoRow);
 
       return page;
+    }
+
+    _getLanguageIndex() {
+      const currentLanguage = this.settings.get_string("language");
+      const languages = ['system', 'pt-BR', 'en-US'];
+      const index = languages.indexOf(currentLanguage);
+      return index >= 0 ? index : 0; // Default to system if not found
     }
   }
 );
