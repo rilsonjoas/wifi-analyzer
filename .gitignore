@@ -1,5 +1,6 @@
 build/
 build-dir/
+builddir/
 meson-private/
 *.log
 *.cache

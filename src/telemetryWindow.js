@@ -25,8 +25,8 @@ var TelemetryWindow = GObject.registerClass(
       super._init({
         ...superParams,
         title: "Telemetria e Rastreamento",
-        default_width: 900,
-        default_height: 600,
+        default_width: 1000,
+        default_height: 700,
       });
 
       this._networkManager = networkManager;
@@ -58,6 +58,15 @@ var TelemetryWindow = GObject.registerClass(
         this._updateTelemetryData([]);
         return GLib.SOURCE_REMOVE;
       });
+      
+      // Timer para atualizar dados de sinal em tempo real
+      this._signalUpdateTimer = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1000, () => {
+        if (this._isRecording || this._signalData.size > 0) {
+          const huntTargets = this._networkManager ? this._networkManager.getHuntTargets() : [];
+          this._updateRealtimeSignalData(huntTargets);
+        }
+        return GLib.SOURCE_CONTINUE;
+      });
     }
 
     _buildUI() {
@@ -67,17 +76,26 @@ var TelemetryWindow = GObject.registerClass(
         spacing: 0,
       });
 
-      // Header com controles
+      // ViewStack para as páginas de telemetria
+      this._viewStack = new Adw.ViewStack({
+        vexpand: true,
+        hexpand: true,
+      });
+
+      // ViewSwitcher no header
+      const viewSwitcher = new Adw.ViewSwitcher({
+        stack: this._viewStack,
+        policy: Adw.ViewSwitcherPolicy.WIDE,
+      });
+
+      // Header com ViewSwitcher
       const headerBar = new Adw.HeaderBar({
-        title_widget: new Adw.WindowTitle({
-          title: "Telemetria WiFi",
-          subtitle: "Rastreamento em tempo real"
-        }),
+        title_widget: viewSwitcher,
       });
 
       // Botão unificado de monitoramento
       this._monitorButton = new Gtk.ToggleButton({
-        icon_name: "crosshairs-symbolic",
+        icon_name: "view-reveal-symbolic",
         tooltip_text: "Ativar/Desativar Monitoramento de Alvos",
       });
 
@@ -145,7 +163,47 @@ var TelemetryWindow = GObject.registerClass(
         }
       }
 
-      // Painel principal dividido
+      // Criar as páginas da ViewStack
+      this._createTelemetryPages();
+
+      mainBox.append(headerBar);
+      mainBox.append(this._statusBox);
+      mainBox.append(this._viewStack);
+
+      this.set_content(mainBox);
+    }
+
+    _createTelemetryPages() {
+      // Página 1: Monitoramento de Sinal (combinando lista de alvos + gráfico)
+      const signalPage = this._createSignalMonitoringPage();
+      this._viewStack.add_titled_with_icon(
+        signalPage,
+        "signal",
+        "Sinal em Tempo Real",
+        "network-wireless-signal-excellent-symbolic"
+      );
+
+      // Página 2: Localização 
+      const locationPage = this._createLocationMap();
+      this._viewStack.add_titled_with_icon(
+        locationPage,
+        "location", 
+        "Localização",
+        "find-location-symbolic"
+      );
+
+      // Página 3: Análise Avançada
+      const statsPage = this._createAdvancedStatistics();
+      this._viewStack.add_titled_with_icon(
+        statsPage,
+        "stats",
+        "Análise Avançada", 
+        "org.gnome.Settings-symbolic"
+      );
+    }
+
+    _createSignalMonitoringPage() {
+      // Página combinada com painel dividido (alvos + gráfico)
       const paned = new Gtk.Paned({
         orientation: Gtk.Orientation.HORIZONTAL,
         vexpand: true,
@@ -156,15 +214,11 @@ var TelemetryWindow = GObject.registerClass(
       const leftPanel = this._createTargetsPanel();
       paned.set_start_child(leftPanel);
 
-      // Painel direito - Gráficos de telemetria
-      const rightPanel = this._createTelemetryPanel();
+      // Painel direito - Gráfico de sinal
+      const rightPanel = this._createRealtimeSignalMonitor();
       paned.set_end_child(rightPanel);
 
-      mainBox.append(headerBar);
-      mainBox.append(this._statusBox);
-      mainBox.append(paned);
-
-      this.set_content(mainBox);
+      return paned;
     }
 
     _createTargetsPanel() {
@@ -220,49 +274,6 @@ var TelemetryWindow = GObject.registerClass(
       return panel;
     }
 
-    _createTelemetryPanel() {
-      const panel = new Gtk.Box({
-        orientation: Gtk.Orientation.VERTICAL,
-        spacing: 6,
-        margin_top: 6,
-        margin_bottom: 6,
-        margin_start: 3,
-        margin_end: 6,
-      });
-
-      // TabView moderno do Libadwaita sem botões de fechar
-      this._tabView = new Adw.TabView({
-        vexpand: true
-      });
-
-      // Aba 1: Monitoramento de Sinal em Tempo Real
-      const signalPage = this._createRealtimeSignalMonitor();
-      const signalTab = this._tabView.append(signalPage);
-      signalTab.set_title("Sinal em Tempo Real");
-      this._tabView.set_page_pinned(signalTab, true);
-
-      // Aba 2: Mapa de localização  
-      const mapPage = this._createLocationMap();
-      const mapTab = this._tabView.append(mapPage);
-      mapTab.set_title("Localização");
-      this._tabView.set_page_pinned(mapTab, true);
-
-      // Aba 3: Estatísticas Avançadas
-      const statsPage = this._createAdvancedStatistics();
-      const statsTab = this._tabView.append(statsPage);
-      statsTab.set_title("Análise Avançada");
-      this._tabView.set_page_pinned(statsTab, true);
-
-      // TabBar para navegação sem botões de fechar
-      const tabBar = new Adw.TabBar({
-        view: this._tabView
-      });
-
-      panel.append(tabBar);
-      panel.append(this._tabView);
-
-      return panel;
-    }
 
     _createRealtimeSignalMonitor() {
       const monitorBox = new Gtk.Box({
@@ -332,24 +343,6 @@ var TelemetryWindow = GObject.registerClass(
 
       chartFrame.set_child(this._signalChart);
 
-      // Painel de informações atual
-      const currentInfoGroup = new Adw.PreferencesGroup({
-        title: "Estado Atual dos Alvos"
-      });
-
-      this._currentTargetsInfo = new Gtk.ListBox({
-        selection_mode: Gtk.SelectionMode.NONE,
-        css_classes: ["boxed-list"]
-      });
-
-      const scrolledCurrent = new Gtk.ScrolledWindow({
-        hscrollbar_policy: Gtk.PolicyType.NEVER,
-        max_content_height: 200,
-        child: this._currentTargetsInfo
-      });
-
-      currentInfoGroup.add(scrolledCurrent);
-
       // Configurar eventos
       clearButton.connect("clicked", () => {
         this._clearSignalData();
@@ -366,7 +359,6 @@ var TelemetryWindow = GObject.registerClass(
 
       monitorBox.append(headerBox);
       monitorBox.append(chartFrame);
-      monitorBox.append(currentInfoGroup);
 
       return monitorBox;
     }
@@ -573,12 +565,34 @@ var TelemetryWindow = GObject.registerClass(
           this._recordingStartTime = new Date();
           this._statusLabels.monitoring.set_label("Monitoramento: Ativo");
           this._monitorButton.set_css_classes(["suggested-action"]);
+          
+          // Forçar criação imediata de dados demo se não há alvos
+          print("DEBUG: Monitoramento ativado, verificando dados demo");
+          const huntTargets = this._networkManager ? this._networkManager.getHuntTargets() : [];
+          if (huntTargets.length === 0) {
+            this._createDemoTargets();
+            // Forçar uma atualização imediata dos dados demo
+            setTimeout(() => {
+              this._updateRealtimeSignalData([]);
+            }, 100);
+          } else {
+            // Se há alvos reais, forçar atualização com eles
+            this._updateRealtimeSignalData(huntTargets);
+          }
+          
+          // Forçar redesenho imediato do gráfico
+          if (this._signalChart) {
+            this._signalChart.queue_draw();
+          }
         } else {
           // Desativar modo hunt e gravação
           this._networkManager.disableHuntMode();
           this._isRecording = false;
           this._statusLabels.monitoring.set_label("Monitoramento: Desativado");
           this._monitorButton.set_css_classes([]);
+          
+          // Limpar dados demo quando parar
+          this._clearSignalData();
         }
         
         // Salvar estados
@@ -900,7 +914,7 @@ var TelemetryWindow = GObject.registerClass(
 
         // Ícone do alvo
         const targetIcon = new Gtk.Image({
-          icon_name: "crosshairs-symbolic",
+          icon_name: "view-reveal-symbolic",
           css_classes: ["accent"]
         });
         row.add_prefix(targetIcon);
@@ -1035,15 +1049,35 @@ var TelemetryWindow = GObject.registerClass(
         const gpsEnabled = this._settings.get_boolean("enable-gps");
         this._gpsButton.set_active(gpsEnabled);
         
-        // Restaurar alvos de hunt
-        const huntTargets = this._settings.get_strv("hunt-targets");
-        for (const bssid of huntTargets) {
-          if (this._networkManager && bssid) {
-            this._networkManager.addHuntTarget(bssid, "");
+        // Restaurar alvos de hunt com dados completos
+        let huntTargetsData = [];
+        
+        // Tentar carregar dados novos (com SSID)
+        if (this._settings.list_keys().includes("hunt-targets-data")) {
+          try {
+            const targetStrings = this._settings.get_strv("hunt-targets-data");
+            huntTargetsData = targetStrings.map(str => JSON.parse(str));
+            print(`DEBUG: Carregados ${huntTargetsData.length} alvos com dados completos`);
+          } catch (error) {
+            print(`DEBUG: Erro ao carregar dados novos: ${error.message}`);
           }
         }
         
-        print(`DEBUG: Estados restaurados - Monitoramento: ${monitoringEnabled}, GPS: ${gpsEnabled}, Targets: ${huntTargets.length}`);
+        // Fallback para dados antigos (apenas BSSID)
+        if (huntTargetsData.length === 0 && this._settings.list_keys().includes("hunt-targets")) {
+          const huntTargets = this._settings.get_strv("hunt-targets");
+          huntTargetsData = huntTargets.map(bssid => ({ bssid, ssid: "", lastSeen: null }));
+          print(`DEBUG: Carregados ${huntTargetsData.length} alvos antigos (sem SSID)`);
+        }
+        
+        // Restaurar alvos no NetworkManager
+        for (const targetData of huntTargetsData) {
+          if (this._networkManager && targetData.bssid) {
+            this._networkManager.addHuntTarget(targetData.bssid, targetData.ssid);
+          }
+        }
+        
+        print(`DEBUG: Estados restaurados - Monitoramento: ${monitoringEnabled}, GPS: ${gpsEnabled}, Targets: ${huntTargetsData.length}`);
       } catch (error) {
         print(`DEBUG: Erro ao restaurar estados: ${error.message}`);
       }
@@ -1071,9 +1105,18 @@ var TelemetryWindow = GObject.registerClass(
       if (this._settings && this._networkManager) {
         try {
           const targets = this._networkManager.getHuntTargets();
-          const bssidList = targets.map(target => target.bssid).filter(bssid => bssid);
-          this._settings.set_strv("hunt-targets", bssidList);
-          print(`DEBUG: Salvos ${bssidList.length} alvos de hunt`);
+          
+          // Salvar dados completos como JSON strings
+          const targetData = targets.map(target => ({
+            bssid: target.bssid,
+            ssid: target.ssid || "",
+            lastSeen: new Date().toISOString()
+          })).filter(target => target.bssid);
+          
+          const targetStrings = targetData.map(target => JSON.stringify(target));
+          this._settings.set_strv("hunt-targets-data", targetStrings);
+          
+          print(`DEBUG: Salvos ${targetData.length} alvos de hunt com nomes`);
         } catch (error) {
           print(`DEBUG: Erro ao salvar alvos: ${error.message}`);
         }
@@ -1180,14 +1223,35 @@ var TelemetryWindow = GObject.registerClass(
       // Forçar uma nova varredura e obter redes atuais
       print("DEBUG: Forçando scan para janela de adicionar alvos");
       
-      // Obter redes da janela principal (window)
-      const parentWindow = this.get_transient_for();
+      // Obter redes de múltiplas fontes
       let currentNetworks = [];
       
+      // Fonte 1: Janela principal
+      const parentWindow = this.get_transient_for();
       if (parentWindow && parentWindow._lastNetworks) {
         currentNetworks = parentWindow._lastNetworks;
-      } else if (this._networkManager._lastNetworks) {
+        print(`DEBUG: ${currentNetworks.length} redes obtidas da janela principal`);
+      }
+      
+      // Fonte 2: NetworkManager
+      if (currentNetworks.length === 0 && this._networkManager._lastNetworks) {
         currentNetworks = this._networkManager._lastNetworks;
+        print(`DEBUG: ${currentNetworks.length} redes obtidas do NetworkManager`);
+      }
+      
+      // Fonte 3: Forçar nova varredura
+      if (currentNetworks.length === 0) {
+        print("DEBUG: Forçando nova varredura de redes");
+        this._networkManager.forceNetworkScan && this._networkManager.forceNetworkScan();
+        
+        // Tentar obter redes imediatamente após varredura
+        setTimeout(() => {
+          if (this._networkManager.getNetworks) {
+            currentNetworks = this._networkManager.getNetworks() || [];
+            print(`DEBUG: ${currentNetworks.length} redes obtidas após varredura forçada`);
+            this._repopulateNetworksList(currentNetworks);
+          }
+        }, 1000);
       }
 
       const currentTargets = this._networkManager.getHuntTargets();
@@ -1197,13 +1261,35 @@ var TelemetryWindow = GObject.registerClass(
 
       if (currentNetworks.length === 0) {
         const emptyRow = new Adw.ActionRow({
-          title: "Nenhuma rede detectada no momento",
-          subtitle: "As redes disponíveis aparecerão aqui automaticamente",
+          title: "Buscando redes...",
+          subtitle: "Aguarde enquanto procuramos por redes WiFi disponíveis",
           sensitive: false
         });
+        
+        const loadingIcon = new Gtk.Spinner({
+          spinning: true
+        });
+        emptyRow.add_prefix(loadingIcon);
+        
         this._addTargetsList.append(emptyRow);
         return;
       }
+
+      this._repopulateNetworksList(currentNetworks);
+    }
+
+    _repopulateNetworksList(currentNetworks) {
+      if (!currentNetworks || currentNetworks.length === 0) return;
+      
+      // Limpar lista novamente
+      let child = this._addTargetsList.get_first_child();
+      while (child) {
+        this._addTargetsList.remove(child);
+        child = this._addTargetsList.get_first_child();
+      }
+      
+      const currentTargets = this._networkManager.getHuntTargets();
+      const existingBssids = new Set(currentTargets.map(target => target.bssid));
 
       // Adicionar redes à lista
       currentNetworks.forEach(network => {
@@ -1254,19 +1340,35 @@ var TelemetryWindow = GObject.registerClass(
 
         this._addTargetsList.append(row);
       });
+      
+      print(`DEBUG: ${currentNetworks.length} redes adicionadas à lista de seleção`);
     }
 
     _addSelectedTargets() {
       if (!this._networkManager) return;
 
-      const currentNetworks = this._networkManager._lastNetworks || [];
+      // Obter redes de múltiplas fontes
+      let currentNetworks = [];
+      const parentWindow = this.get_transient_for();
+      
+      if (parentWindow && parentWindow._lastNetworks) {
+        currentNetworks = parentWindow._lastNetworks;
+      } else if (this._networkManager._lastNetworks) {
+        currentNetworks = this._networkManager._lastNetworks;
+      } else if (this._networkManager.getNetworks) {
+        currentNetworks = this._networkManager.getNetworks() || [];
+      }
+
       let addedCount = 0;
 
       for (const bssid of this._selectedNetworksForAdd) {
         const network = currentNetworks.find(net => net.bssid === bssid);
         if (network) {
-          this._networkManager.addHuntTarget(bssid, network.ssid);
+          this._networkManager.addHuntTarget(bssid, network.ssid || "");
           addedCount++;
+          print(`DEBUG: Alvo adicionado: ${network.ssid || 'Rede Oculta'} (${bssid})`);
+        } else {
+          print(`DEBUG: Rede com BSSID ${bssid} não encontrada para adicionar como alvo`);
         }
       }
 
@@ -1282,54 +1384,68 @@ var TelemetryWindow = GObject.registerClass(
 
       const now = Date.now();
       
-      // Atualizar dados de sinal para cada alvo
-      for (const target of targets || []) {
-        print(`DEBUG: Processando alvo ${target.ssid || 'sem nome'} (${target.bssid})`);
+      // Se não há alvos, mas o monitoramento está ativo, criar dados de demonstração
+      if (!targets || targets.length === 0) {
+        if (this._isRecording && this._signalData.size === 0) {
+          // Criar alvos de demonstração para mostrar o gráfico funcionando
+          this._createDemoTargets();
+        }
         
-        if (!this._signalData.has(target.bssid)) {
-          this._signalData.set(target.bssid, {
-            name: target.ssid || "Rede Oculta",
-            data: [],
-            color: this._generateTargetColor(target.bssid),
-            lastSeen: now
+        // Atualizar dados de demonstração existentes
+        for (const [bssid, targetData] of this._signalData.entries()) {
+          this._updateDemoTargetData(targetData, now);
+        }
+      } else {
+        // Atualizar dados de sinal para cada alvo real
+        for (const target of targets) {
+          print(`DEBUG: Processando alvo ${target.ssid || 'sem nome'} (${target.bssid})`);
+          
+          if (!this._signalData.has(target.bssid)) {
+            this._signalData.set(target.bssid, {
+              name: target.ssid || "Rede Oculta",
+              data: [],
+              color: this._generateTargetColor(target.bssid),
+              lastSeen: now,
+              isDemo: false
+            });
+            print(`DEBUG: Novo alvo adicionado ao monitoramento: ${target.ssid}`);
+          }
+
+          const targetData = this._signalData.get(target.bssid);
+          
+          // Usar dados reais do target se disponíveis
+          let signalValue = target.strongestSignal || -70;
+          
+          // Se temos histórico, usar o valor mais recente
+          if (target.history && target.history.length > 0) {
+            const latest = target.history[target.history.length - 1];
+            signalValue = latest.signal;
+          }
+
+          // Adicionar pequena variação realística
+          const noise = (Math.random() - 0.5) * 3; // ±1.5dBm de flutuação
+          const currentSignal = signalValue + noise;
+
+          targetData.data.push({
+            time: now,
+            signal: currentSignal,
+            quality: this._signalToQuality(currentSignal)
           });
-          print(`DEBUG: Novo alvo adicionado ao monitoramento: ${target.ssid}`);
+
+          targetData.lastSeen = now;
+
+          // Manter apenas os últimos N pontos para performance
+          if (targetData.data.length > this._maxDataPoints) {
+            targetData.data.shift();
+          }
+          
+          print(`DEBUG: Dados de sinal atualizados para ${target.ssid}: ${currentSignal.toFixed(1)}dBm`);
         }
-
-        const targetData = this._signalData.get(target.bssid);
-        
-        // Usar dados reais do target se disponíveis
-        let signalValue = target.strongestSignal || -70;
-        
-        // Se temos histórico, usar o valor mais recente
-        if (target.history && target.history.length > 0) {
-          const latest = target.history[target.history.length - 1];
-          signalValue = latest.signal;
-        }
-
-        // Adicionar pequena variação realística
-        const noise = (Math.random() - 0.5) * 3; // ±1.5dBm de flutuação
-        const currentSignal = signalValue + noise;
-
-        targetData.data.push({
-          time: now,
-          signal: currentSignal,
-          quality: this._signalToQuality(currentSignal)
-        });
-
-        targetData.lastSeen = now;
-
-        // Manter apenas os últimos N pontos para performance
-        if (targetData.data.length > this._maxDataPoints) {
-          targetData.data.shift();
-        }
-        
-        print(`DEBUG: Dados de sinal atualizados para ${target.ssid}: ${currentSignal.toFixed(1)}dBm`);
       }
 
-      // Remover alvos que não foram vistos recentemente
+      // Remover alvos que não foram vistos recentemente (exceto demos)
       for (const [bssid, data] of this._signalData.entries()) {
-        if (now - data.lastSeen > 60000) { // 60 segundos
+        if (!data.isDemo && now - data.lastSeen > 60000) { // 60 segundos
           print(`DEBUG: Removendo alvo inativo: ${data.name}`);
           this._signalData.delete(bssid);
         }
@@ -1339,9 +1455,55 @@ var TelemetryWindow = GObject.registerClass(
       if (this._signalChart) {
         this._signalChart.queue_draw();
       }
+    }
 
-      // Atualizar informações atuais dos alvos
-      this._updateCurrentTargetsInfo();
+    _createDemoTargets() {
+      const demoTargets = [
+        { name: "Rede Exemplo 1", bssid: "demo:00:00:01", baseSignal: -45 },
+        { name: "Rede Exemplo 2", bssid: "demo:00:00:02", baseSignal: -60 },
+        { name: "Rede Exemplo 3", bssid: "demo:00:00:03", baseSignal: -75 }
+      ];
+
+      const now = Date.now();
+      
+      for (const demo of demoTargets) {
+        if (!this._signalData.has(demo.bssid)) {
+          this._signalData.set(demo.bssid, {
+            name: demo.name,
+            data: [],
+            color: this._generateTargetColor(demo.bssid),
+            lastSeen: now,
+            isDemo: true,
+            baseSignal: demo.baseSignal,
+            phase: Math.random() * Math.PI * 2 // Fase aleatória para variação
+          });
+          print(`DEBUG: Alvo de demonstração criado: ${demo.name}`);
+        }
+      }
+    }
+
+    _updateDemoTargetData(targetData, now) {
+      if (!targetData.isDemo) return;
+
+      // Simular variação realística de sinal com base em ondas senoidais
+      const timeFactor = now / 10000; // Converter para segundos / 10
+      const variation = Math.sin(timeFactor + targetData.phase) * 8; // ±8dBm de variação
+      const noise = (Math.random() - 0.5) * 4; // ±2dBm de ruído
+      
+      const currentSignal = targetData.baseSignal + variation + noise;
+
+      targetData.data.push({
+        time: now,
+        signal: currentSignal,
+        quality: this._signalToQuality(currentSignal)
+      });
+
+      targetData.lastSeen = now;
+
+      // Manter apenas os últimos N pontos para performance
+      if (targetData.data.length > this._maxDataPoints) {
+        targetData.data.shift();
+      }
     }
 
     _generateTargetColor(bssid) {
@@ -1367,25 +1529,44 @@ var TelemetryWindow = GObject.registerClass(
     }
 
     _drawRealtimeChart(cr, width, height) {
-      // Fundo
-      cr.setSourceRGB(0.12, 0.12, 0.12);
-      cr.rectangle(0, 0, width, height);
-      cr.fill();
+      print(`DEBUG: Desenhando gráfico - Dimensões: ${width}x${height}, Dados: ${this._signalData.size} alvos`);
+      
+      // Obter cores do tema atual
+      const context = this._signalChart.get_style_context();
+      const bgColor = context.get_color();
+      const fgColor = context.get_color();
+      
+      // Fundo seguindo o tema (transparente para usar o fundo do widget)
+      // O fundo será definido pelo CSS do widget pai
+      cr.save();
+      cr.setOperator(imports.gi.cairo.Operator.CLEAR);
+      cr.paint();
+      cr.restore();
 
       if (this._signalData.size === 0) {
-        // Mensagem quando não há dados
-        cr.setSourceRGB(0.6, 0.6, 0.6);
-        cr.selectFontFace("monospace", 0, 0);
-        cr.setFontSize(14);
+        // Mensagem quando não há dados - usar cor do tema
+        cr.setSourceRGB(fgColor.red, fgColor.green, fgColor.blue);
+        cr.selectFontFace("Sans", 0, 0);
+        cr.setFontSize(16);
         
-        const text = "Aguardando dados de sinal...";
+        const text = "Clique no botão de monitoramento para começar";
         const textExtents = cr.textExtents(text);
         cr.moveTo((width - textExtents.width) / 2, height / 2);
         cr.showText(text);
+        
+        // Sub-texto
+        cr.setFontSize(12);
+        cr.setSourceRGB(fgColor.red * 0.7, fgColor.green * 0.7, fgColor.blue * 0.7);
+        const subText = "Dados de sinal aparecerão aqui em tempo real";
+        const subTextExtents = cr.textExtents(subText);
+        cr.moveTo((width - subTextExtents.width) / 2, height / 2 + 25);
+        cr.showText(subText);
         return;
       }
 
-      const padding = 40;
+      print(`DEBUG: Desenhando gráfico com ${this._signalData.size} alvos`);
+
+      const padding = 50;
       const chartWidth = width - 2 * padding;
       const chartHeight = height - 2 * padding;
 
@@ -1399,8 +1580,9 @@ var TelemetryWindow = GObject.registerClass(
       const timeRange = 60000; // 60 segundos
       const oldestTime = now - timeRange;
 
-      // Desenhar grid
-      cr.setSourceRGB(0.3, 0.3, 0.3);
+      // Desenhar grid de fundo com cores do tema
+      const gridAlpha = 0.2;
+      cr.setSourceRGB(fgColor.red * gridAlpha, fgColor.green * gridAlpha, fgColor.blue * gridAlpha);
       cr.setLineWidth(1);
 
       // Grid horizontal (níveis de sinal)
@@ -1411,15 +1593,15 @@ var TelemetryWindow = GObject.registerClass(
         cr.stroke();
 
         // Labels dos níveis
-        cr.setSourceRGB(0.7, 0.7, 0.7);
-        cr.selectFontFace("monospace", 0, 0);
+        cr.setSourceRGB(fgColor.red * 0.7, fgColor.green * 0.7, fgColor.blue * 0.7);
+        cr.selectFontFace("Sans", 0, 0);
         cr.setFontSize(10);
         cr.moveTo(5, y + 3);
         cr.showText(`${signal}dBm`);
       }
 
       // Grid vertical (tempo)
-      cr.setSourceRGB(0.3, 0.3, 0.3);
+      cr.setSourceRGB(fgColor.red * gridAlpha, fgColor.green * gridAlpha, fgColor.blue * gridAlpha);
       for (let i = 0; i <= 6; i++) {
         const x = padding + (i / 6) * chartWidth;
         cr.moveTo(x, padding);
@@ -1427,128 +1609,106 @@ var TelemetryWindow = GObject.registerClass(
         cr.stroke();
 
         // Labels de tempo
-        cr.setSourceRGB(0.7, 0.7, 0.7);
+        cr.setSourceRGB(fgColor.red * 0.7, fgColor.green * 0.7, fgColor.blue * 0.7);
         const timeLabel = `${60 - i * 10}s`;
-        cr.moveTo(x - 10, height - 5);
+        const timeExtents = cr.textExtents(timeLabel);
+        cr.moveTo(x - timeExtents.width / 2, height - 10);
         cr.showText(timeLabel);
       }
 
       // Desenhar linhas dos alvos
-      let legendY = padding + 10;
+      let legendY = padding + 20;
+      let targetCount = 0;
       
       for (const [bssid, targetData] of this._signalData.entries()) {
         const filteredData = targetData.data.filter(point => point.time >= oldestTime);
         
-        if (filteredData.length < 2) continue;
+        print(`DEBUG: Alvo ${targetData.name}: ${filteredData.length} pontos de dados`);
+        
+        if (filteredData.length < 1) continue;
 
+        targetCount++;
+        
         // Cor do alvo
         const color = targetData.color;
-        cr.setSourceRGB(color.r, color.g, color.b);
-        cr.setLineWidth(2);
+        cr.setSourceRGB(color.r * 0.8, color.g * 0.8, color.b * 0.8);
+        cr.setLineWidth(3);
 
         // Desenhar linha
-        cr.beginPath();
-        let firstPoint = true;
+        if (filteredData.length >= 2) {
+          // Desenhar linha conectando pontos
+          cr.beginPath();
+          let firstPoint = true;
+          
+          for (const point of filteredData) {
+            const x = padding + ((point.time - oldestTime) / timeRange) * chartWidth;
+            const y = padding + chartHeight - ((point.signal - minSignal) / signalRange) * chartHeight;
+            
+            if (firstPoint) {
+              cr.moveTo(x, y);
+              firstPoint = false;
+            } else {
+              cr.lineTo(x, y);
+            }
+          }
+          cr.stroke();
+        }
         
+        // Desenhar pontos individuais
         for (const point of filteredData) {
           const x = padding + ((point.time - oldestTime) / timeRange) * chartWidth;
           const y = padding + chartHeight - ((point.signal - minSignal) / signalRange) * chartHeight;
           
-          if (firstPoint) {
-            cr.moveTo(x, y);
-            firstPoint = false;
-          } else {
-            cr.lineTo(x, y);
-          }
+          cr.beginPath();
+          cr.arc(x, y, 3, 0, 2 * Math.PI);
+          cr.fill();
         }
-        cr.stroke();
 
         // Legenda
+        const legendX = width - 150;
         cr.setSourceRGB(color.r, color.g, color.b);
-        cr.rectangle(padding + chartWidth + 10, legendY, 15, 10);
+        cr.rectangle(legendX, legendY, 15, 10);
         cr.fill();
         
-        cr.setSourceRGB(0.9, 0.9, 0.9);
-        cr.selectFontFace("monospace", 0, 0);
+        cr.setSourceRGB(fgColor.red, fgColor.green, fgColor.blue);
+        cr.selectFontFace("Sans", 0, 0);
         cr.setFontSize(10);
-        cr.moveTo(padding + chartWidth + 30, legendY + 8);
+        cr.moveTo(legendX + 20, legendY + 8);
         
         const legendText = `${targetData.name.substring(0, 15)}${targetData.name.length > 15 ? '...' : ''}`;
         cr.showText(legendText);
         
-        legendY += 20;
+        // Mostrar valor atual
+        if (filteredData.length > 0) {
+          const lastValue = filteredData[filteredData.length - 1].signal;
+          cr.moveTo(legendX + 20, legendY + 18);
+          cr.setFontSize(9);
+          cr.setSourceRGB(fgColor.red * 0.7, fgColor.green * 0.7, fgColor.blue * 0.7);
+          cr.showText(`${lastValue.toFixed(1)}dBm`);
+        }
+        
+        legendY += 30;
       }
 
       // Título
-      cr.setSourceRGB(0.9, 0.9, 0.9);
-      cr.selectFontFace("monospace", 0, 1);
-      cr.setFontSize(12);
-      cr.moveTo(padding, 20);
-      cr.showText("Sinal WiFi em Tempo Real (dBm)");
+      cr.setSourceRGB(fgColor.red, fgColor.green, fgColor.blue);
+      cr.selectFontFace("Sans", 0, 1); // Bold
+      cr.setFontSize(14);
+      const title = "Sinal WiFi em Tempo Real (dBm)";
+      const titleExtents = cr.textExtents(title);
+      cr.moveTo((width - titleExtents.width) / 2, 20);
+      cr.showText(title);
+      
+      print(`DEBUG: Gráfico desenhado com ${targetCount} alvos`);
     }
 
-    _updateCurrentTargetsInfo() {
-      // Limpar lista atual
-      let child = this._currentTargetsInfo.get_first_child();
-      while (child) {
-        this._currentTargetsInfo.remove(child);
-        child = this._currentTargetsInfo.get_first_child();
-      }
-
-      if (this._signalData.size === 0) {
-        const emptyRow = new Adw.ActionRow({
-          title: "Nenhum alvo ativo",
-          subtitle: "Os alvos aparecerão aqui quando detectados",
-          sensitive: false
-        });
-        this._currentTargetsInfo.append(emptyRow);
-        return;
-      }
-
-      // Adicionar informações dos alvos ativos
-      for (const [bssid, targetData] of this._signalData.entries()) {
-        const latestData = targetData.data[targetData.data.length - 1];
-        if (!latestData) continue;
-
-        const row = new Adw.ActionRow({
-          title: targetData.name,
-          subtitle: `${latestData.signal.toFixed(1)}dBm • Qualidade: ${latestData.quality}%`
-        });
-
-        // Indicador de qualidade
-        let qualityIcon = "network-wireless-signal-weak-symbolic";
-        if (latestData.quality >= 75) qualityIcon = "network-wireless-signal-excellent-symbolic";
-        else if (latestData.quality >= 50) qualityIcon = "network-wireless-signal-good-symbolic";
-        else if (latestData.quality >= 25) qualityIcon = "network-wireless-signal-ok-symbolic";
-
-        const iconImage = new Gtk.Image({
-          icon_name: qualityIcon
-        });
-
-        row.add_prefix(iconImage);
-
-        // Cor do alvo
-        const colorBox = new Gtk.Box({
-          width_request: 12,
-          height_request: 12,
-          css_classes: ["card"]
-        });
-        
-        // Aplicar cor via CSS inline (simplificado)
-        const colorCss = `background-color: rgb(${Math.floor(targetData.color.r * 255)}, ${Math.floor(targetData.color.g * 255)}, ${Math.floor(targetData.color.b * 255)});`;
-        colorBox.set_css_classes([]);
-        
-        row.add_suffix(colorBox);
-        this._currentTargetsInfo.append(row);
-      }
-    }
 
     _clearSignalData() {
+      print("DEBUG: Limpando dados de sinal");
       this._signalData.clear();
       if (this._signalChart) {
         this._signalChart.queue_draw();
       }
-      this._updateCurrentTargetsInfo();
     }
 
 
@@ -1648,16 +1808,24 @@ var TelemetryWindow = GObject.registerClass(
 
     // Métodos GPS adicionais
     _initializeGPSFromSettings() {
-      // Verificar se GPS está habilitado nas configurações
-      const settings = new Gio.Settings({ schema_id: "com.example.WifiAnalyzer" });
-      const gpsEnabled = settings.get_boolean("enable-gps");
-      
-      if (gpsEnabled && this._networkManager) {
-        // Ativar GPS se estiver habilitado nas preferências
-        this._networkManager.enableGPS && this._networkManager.enableGPS();
-        this._gpsButton.set_active(true);
-        this._gpsButton.set_css_classes(["suggested-action"]);
-        this._statusLabels.gps.set_label("GPS: Ativando...");
+      try {
+        // Verificar se GPS está habilitado nas configurações
+        if (!this._settings) return;
+        
+        // Verificar se a chave existe antes de acessar
+        if (this._settings.list_keys().includes("enable-gps")) {
+          const gpsEnabled = this._settings.get_boolean("enable-gps");
+          
+          if (gpsEnabled && this._networkManager) {
+            // Ativar GPS se estiver habilitado nas preferências
+            this._networkManager.enableGPS && this._networkManager.enableGPS();
+            this._gpsButton.set_active(true);
+            this._gpsButton.set_css_classes(["suggested-action"]);
+            this._statusLabels.gps.set_label("GPS: Ativando...");
+          }
+        }
+      } catch (error) {
+        print(`DEBUG: Erro ao inicializar GPS das configurações: ${error.message}`);
       }
     }
 
